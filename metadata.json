@@ -1,0 +1,9 @@
+{
+  "name": "GrameenConnect",
+  "description": "Empowering rural communities through digital access, education, and services.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}

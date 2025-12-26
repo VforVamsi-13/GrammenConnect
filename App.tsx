@@ -78,6 +78,7 @@ const FaceAuth: React.FC<{ onSuccess: (name: string) => void; language: Language
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusText, setStatusText] = useState<string>('');
+  const [isSuccess, setIsSuccess] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { t } = useLanguage();
@@ -95,6 +96,7 @@ const FaceAuth: React.FC<{ onSuccess: (name: string) => void; language: Language
     setActive(true);
     setError(null);
     setStatusText('');
+    setIsSuccess(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
@@ -116,7 +118,7 @@ const FaceAuth: React.FC<{ onSuccess: (name: string) => void; language: Language
     if (!videoRef.current || !canvasRef.current) return;
     setLoading(true);
     setError(null);
-    setStatusText('Analyzing facial features...');
+    setStatusText('Verifying...');
     
     try {
       const video = videoRef.current;
@@ -124,31 +126,27 @@ const FaceAuth: React.FC<{ onSuccess: (name: string) => void; language: Language
       const context = canvas.getContext('2d');
       if (!context) throw new Error("Canvas context failed");
       
-      // Sync dimensions
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      // Optimization: Slightly larger than before for accuracy, but still small for speed
+      canvas.width = 480;
+      canvas.height = 360;
       
-      // Flip context to match mirrored preview for consistency
+      // Mirror the context
       context.translate(canvas.width, 0);
       context.scale(-1, 1);
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       
-      const imageData = canvas.toDataURL('image/jpeg', 0.9);
+      // JPEG quality 0.6 balances size and detail
+      const imageData = canvas.toDataURL('image/jpeg', 0.6);
       const base64 = imageData.split(',')[1];
 
-      // Robust prompt for fraud prevention and quality check
+      // Refined prompt to ignore background hallucinations and shadows
       const prompt = `
-        Does this image contain a clear human face?
-        
-        Strict Conditions for 'VERIFIED':
-        1. The face is clearly visible, centered, and well-lit.
-        2. NO hands, fingers, hair, or clothing are covering the mouth, eyes, or nose.
-        3. NO physical objects (phones, photos, screens) are being held up to the camera.
-        4. It is a live person, not a photo of a photo.
-        
-        Output format: 
-        If verified: "STATUS: VERIFIED"
-        If not verified: "STATUS: RETRY - [Short 5-word reason in English]"
+        Focus ONLY on the person in the foreground. 
+        Ignore the background, shadows, and furniture.
+        Is there exactly one clear human face in the foreground?
+        Ensure no hands or objects are covering the face.
+        Reply "YES" or "NO: [reason]". 
+        Example NO reasons: "Face blurry", "Face obstructed", "No human detected".
       `;
 
       const result = await generateVisionContent(
@@ -161,19 +159,18 @@ const FaceAuth: React.FC<{ onSuccess: (name: string) => void; language: Language
 
       const normalizedResult = result.toUpperCase();
       
-      if (normalizedResult.includes("VERIFIED")) {
-        setStatusText('Identity Verified!');
-        // Small delay to show the success state
-        setTimeout(() => onSuccess("Grameen Citizen"), 500);
+      if (normalizedResult.includes("YES")) {
+        setIsSuccess(true);
+        setStatusText('Verified!');
+        setTimeout(() => onSuccess("Verified Citizen"), 400);
       } else {
-        const reasonMatch = result.match(/RETRY - (.*)/i);
-        const reason = reasonMatch ? reasonMatch[1] : "Position face clearly in center";
-        setError(`Failed: ${reason}`);
+        const reason = result.includes("NO:") ? result.split("NO:")[1].trim() : "Ensure face is clear and centered";
+        setError(`Retry: ${reason.split('.')[0]}`);
         setStatusText('');
       }
     } catch (err) {
       console.error("Auth Error:", err);
-      setError("Could not complete scan. Please check your lighting.");
+      setError("Connection error. Try again.");
     } finally {
       setLoading(false);
     }
@@ -187,13 +184,14 @@ const FaceAuth: React.FC<{ onSuccess: (name: string) => void; language: Language
     }
     setActive(false);
     setStatusText('');
+    setIsSuccess(false);
   };
 
   if (!active) {
     return (
       <button 
         onClick={startCamera}
-        className="w-full flex items-center justify-center gap-3 bg-indigo-50 text-indigo-700 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] border-2 border-indigo-100 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all active:scale-95"
+        className="w-full flex items-center justify-center gap-3 bg-indigo-50 text-indigo-700 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] border-2 border-indigo-100 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all active:scale-95 shadow-sm"
       >
         <Scan size={18} /> Face Sign In
       </button>
@@ -202,46 +200,52 @@ const FaceAuth: React.FC<{ onSuccess: (name: string) => void; language: Language
 
   return (
     <div className="space-y-6 flex flex-col items-center animate-in zoom-in duration-300">
-      <div className={`relative w-64 h-64 rounded-full overflow-hidden border-4 transition-colors duration-500 shadow-2xl bg-black ${error ? 'border-red-500' : loading ? 'border-indigo-500' : 'border-green-500'}`}>
+      <div className={`relative w-64 h-64 rounded-full overflow-hidden border-4 transition-all duration-300 shadow-2xl bg-black ${isSuccess ? 'border-green-500' : error ? 'border-red-500' : loading ? 'border-indigo-400' : 'border-gray-200'}`}>
         <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
-        {!loading && !error && <div className="animate-scan" />}
-        {loading && (
-          <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center z-20">
-            <Loader2 size={40} className="text-white animate-spin mb-2" />
-            <span className="text-white text-[10px] font-black uppercase tracking-widest">Verifying...</span>
+        {!loading && !error && !isSuccess && <div className="animate-scan" />}
+        {(loading || isSuccess) && (
+          <div className={`absolute inset-0 flex flex-col items-center justify-center z-20 ${isSuccess ? 'bg-green-500/20' : 'bg-black/40'}`}>
+            {isSuccess ? <Check size={48} className="text-white animate-bounce" /> : <Loader2 size={40} className="text-white animate-spin" />}
           </div>
         )}
       </div>
       
+      <div className="text-center min-h-[30px] px-4">
+        {statusText && <p className="text-green-600 text-[10px] font-black uppercase tracking-widest">{statusText}</p>}
+        {error && <p className="text-red-500 text-[10px] font-black uppercase tracking-widest leading-tight">{error}</p>}
+      </div>
+
+      {!isSuccess && (
+        <div className="flex gap-3 w-full">
+           <Button 
+              onClick={captureAndVerify} 
+              isLoading={loading} 
+              disabled={loading}
+              className="flex-1 bg-indigo-600 hover:bg-indigo-700 py-4 font-black text-[10px] uppercase tracking-widest shadow-xl"
+            >
+              Scan
+            </Button>
+           <Button 
+              variant="outline" 
+              onClick={stopCamera} 
+              className="flex-1 py-4 font-black text-[10px] uppercase tracking-widest border-gray-200"
+            >
+              Cancel
+            </Button>
+        </div>
+      )}
       <canvas ref={canvasRef} className="hidden" />
-
-      <div className="text-center min-h-[40px]">
-        {statusText && <p className="text-green-600 text-[10px] font-black uppercase tracking-widest animate-pulse">{statusText}</p>}
-        {error && <p className="text-red-500 text-[10px] font-black uppercase tracking-widest leading-tight mt-1">{error}</p>}
-      </div>
-
-      <div className="flex gap-3 w-full">
-         <Button 
-            onClick={captureAndVerify} 
-            isLoading={loading} 
-            disabled={loading}
-            className="flex-1 bg-green-600 hover:bg-green-700 py-4 font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95"
-          >
-            {loading ? 'Processing...' : 'Verify Now'}
-          </Button>
-         <Button 
-            variant="outline" 
-            onClick={stopCamera} 
-            className="flex-1 py-4 font-black text-[10px] uppercase tracking-widest border-gray-200"
-          >
-            Cancel
-          </Button>
-      </div>
     </div>
   );
 };
 
-const Header: React.FC<{ user: User | null, onViewChange: (v: AppView) => void, onLogin: () => void, onVision: () => void }> = ({ user, onViewChange, onLogin, onVision }) => {
+const Header: React.FC<{ 
+  user: User | null, 
+  onViewChange: (v: AppView) => void, 
+  onLogin: () => void, 
+  onLogout: () => void,
+  onVision: () => void 
+}> = ({ user, onViewChange, onLogin, onLogout, onVision }) => {
   const { elderMode, toggleElderMode, isOffline, toggleOffline } = useContext(AppContext);
   const { t } = useLanguage();
 
@@ -271,13 +275,21 @@ const Header: React.FC<{ user: User | null, onViewChange: (v: AppView) => void, 
             </button>
 
             {user && (
-              <button 
-                onClick={onVision} 
-                disabled={isOffline}
-                className={`px-4 py-2 rounded-full flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border shadow-sm ${isOffline ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-50' : 'bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100'}`}
-              >
-                <Eye size={14} /> {t("Vision")}
-              </button>
+              <>
+                <button 
+                  onClick={onVision} 
+                  disabled={isOffline}
+                  className={`px-4 py-2 rounded-full flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border shadow-sm ${isOffline ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-50' : 'bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100'}`}
+                >
+                  <Eye size={14} /> {t("Vision")}
+                </button>
+                <button 
+                  onClick={onLogout}
+                  className="px-4 py-2 rounded-full flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-red-50 text-red-600 border border-red-100 hover:bg-red-600 hover:text-white transition-all active:scale-95 shadow-sm"
+                >
+                  <LogOut size={14} /> {t("Sign Out")}
+                </button>
+              </>
             )}
             
             <button onClick={toggleElderMode} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${elderMode ? 'bg-green-600 text-white border-green-700' : 'bg-white text-gray-500 hover:text-green-600 border-gray-100 shadow-sm'}`}>
@@ -288,19 +300,17 @@ const Header: React.FC<{ user: User | null, onViewChange: (v: AppView) => void, 
         </div>
 
         <div className="lg:hidden flex items-center gap-2">
+          {user && (
+             <button onClick={onLogout} className="p-2 rounded-full border border-red-100 bg-red-50 text-red-500">
+               <LogOut size={16} />
+             </button>
+          )}
           <button onClick={toggleOffline} className={`p-2 rounded-full border transition-all ${isOffline ? 'bg-amber-600 text-white border-amber-700' : 'bg-white text-gray-400 border-gray-100'}`}>
             {isOffline ? <WifiOff size={16} /> : <Wifi size={16} />}
           </button>
           <LanguageSelector />
         </div>
       </div>
-      
-      {isOffline && (
-        <div className="bg-amber-600 text-white py-1.5 px-4 text-center text-[10px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 animate-in slide-in-from-top duration-300">
-          <AlertCircle size={14} />
-          {t("Working Offline")} - {t("Limited Access")}
-        </div>
-      )}
     </header>
   );
 };
@@ -332,14 +342,7 @@ const LandingPage: React.FC<{ onGetStarted: () => void }> = ({ onGetStarted }) =
   const { elderMode, isOffline } = useContext(AppContext);
   const { t, language } = useLanguage();
   const appName = t("GrameenConnect");
-  const nameParts = appName.split(' ');
   
-  const renderAppName = () => {
-    if (language === 'en') return <>Grameen<span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600">Connect</span></>;
-    if (nameParts.length > 1) return <>{nameParts[0]} <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600">{nameParts.slice(1).join(' ')}</span></>;
-    return <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600">{appName}</span>;
-  };
-
   return (
     <div className="flex flex-col items-center w-full min-h-screen">
       <div className="w-full bg-gradient-to-b from-green-100/50 via-white to-white py-24 px-4 text-center flex flex-col items-center justify-center min-h-[75vh] pb-48">
@@ -348,7 +351,11 @@ const LandingPage: React.FC<{ onGetStarted: () => void }> = ({ onGetStarted }) =
         </div>
         
         <h1 className={`font-black text-gray-900 mb-8 leading-[1.1] tracking-tighter max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100 ${elderMode ? 'text-7xl md:text-9xl' : 'text-6xl md:text-8xl'}`}>
-          {renderAppName()}
+          {language === 'en' ? (
+             <>Grameen<span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600">Connect</span></>
+          ) : (
+             <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600">{appName}</span>
+          )}
         </h1>
         
         <p className={`text-gray-500 max-w-2xl mx-auto mb-16 leading-relaxed font-medium animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 ${elderMode ? 'text-3xl' : 'text-xl'}`}>
@@ -363,25 +370,24 @@ const LandingPage: React.FC<{ onGetStarted: () => void }> = ({ onGetStarted }) =
             <span className="relative z-10 flex items-center gap-3">
                {t("Get Started")} <ArrowRight size={elderMode ? 32 : 24} className="group-hover:translate-x-2 transition-transform duration-300"/>
             </span>
-            <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/30 to-transparent z-0"></div>
           </Button>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 pb-24 grid grid-cols-1 md:grid-cols-3 gap-10 -mt-32 relative z-10">
-        <Card className="border-t-4 border-t-green-500 shadow-2xl hover:shadow-green-200 shadow-gray-200/50 transition-all duration-500 bg-white group hover:-translate-y-4 p-10 flex flex-col items-center md:items-start text-center md:text-left">
-          <div className="bg-green-50 w-20 h-20 rounded-3xl flex items-center justify-center text-green-600 mb-8 group-hover:rotate-6 transition-transform shadow-inner border border-green-100"><BookOpen size={36} /></div>
-          <h3 className="text-2xl font-black mb-4 text-gray-900 group-hover:text-green-600 transition-colors uppercase tracking-tight">{t("Citizen Portal")}</h3>
+        <Card className="border-t-4 border-t-green-500 shadow-2xl bg-white p-10 flex flex-col items-center md:items-start text-center md:text-left group hover:-translate-y-4 transition-all duration-500">
+          <div className="bg-green-50 w-20 h-20 rounded-3xl flex items-center justify-center text-green-600 mb-8"><BookOpen size={36} /></div>
+          <h3 className="text-2xl font-black mb-4 text-gray-900 uppercase tracking-tight">{t("Citizen Portal")}</h3>
           <p className="text-gray-400 font-medium leading-relaxed">{t("Portal Description")}</p>
         </Card>
-        <Card className={`border-t-4 shadow-2xl shadow-gray-200/50 transition-all duration-500 bg-white group hover:-translate-y-4 p-10 flex flex-col items-center md:items-start text-center md:text-left ${isOffline ? 'border-t-amber-500 hover:shadow-amber-200' : 'border-t-blue-500 hover:shadow-blue-200'}`}>
-          <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-8 group-hover:rotate-6 transition-transform shadow-inner border ${isOffline ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{isOffline ? <WifiOff size={36} /> : <Wifi size={16} />}</div>
-          <h3 className={`text-2xl font-black mb-4 text-gray-900 uppercase tracking-tight transition-colors ${isOffline ? 'group-hover:text-amber-600' : 'group-hover:text-blue-600'}`}>{t("Offline Ready")}</h3>
+        <Card className={`border-t-4 shadow-2xl bg-white p-10 flex flex-col items-center md:items-start text-center md:text-left group hover:-translate-y-4 transition-all duration-500 ${isOffline ? 'border-t-amber-500' : 'border-t-blue-500'}`}>
+          <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-8 ${isOffline ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>{isOffline ? <WifiOff size={36} /> : <Wifi size={36} />}</div>
+          <h3 className="text-2xl font-black mb-4 text-gray-900 uppercase tracking-tight">{t("Offline Ready")}</h3>
           <p className="text-gray-400 font-medium leading-relaxed">{t("Offline Description")}</p>
         </Card>
-        <Card className="border-t-4 border-t-orange-500 shadow-2xl hover:shadow-orange-200 shadow-gray-200/50 transition-all duration-500 bg-white group hover:-translate-y-4 p-10 flex flex-col items-center md:items-start text-center md:text-left">
-          <div className="bg-orange-50 w-20 h-20 rounded-3xl flex items-center justify-center text-orange-600 mb-8 group-hover:rotate-6 transition-transform shadow-inner border border-orange-100"><BarChart3 size={36} /></div>
-          <h3 className="text-2xl font-black mb-4 text-gray-900 group-hover:text-orange-600 transition-colors uppercase tracking-tight">{t("Admin Dashboard")}</h3>
+        <Card className="border-t-4 border-t-orange-500 shadow-2xl bg-white p-10 flex flex-col items-center md:items-start text-center md:text-left group hover:-translate-y-4 transition-all duration-500">
+          <div className="bg-orange-50 w-20 h-20 rounded-3xl flex items-center justify-center text-orange-600 mb-8"><BarChart3 size={36} /></div>
+          <h3 className="text-2xl font-black mb-4 text-gray-900 uppercase tracking-tight">{t("Admin Dashboard")}</h3>
           <p className="text-gray-400 font-medium leading-relaxed">{t("Admin Description")}</p>
         </Card>
       </div>
@@ -412,8 +418,6 @@ const Dashboard: React.FC<{ user: User, onOpenTool: (t: ModalType) => void, onOp
           <h2 className={`font-black mb-6 tracking-tighter leading-none ${elderMode ? 'text-6xl md:text-8xl' : 'text-5xl md:text-7xl'}`}>{t("Citizen Portal")}</h2>
           <p className="text-white text-xl md:text-2xl opacity-80 leading-relaxed font-medium">{isOffline ? t("Offline Notice") : t("Dashboard Hero")}</p>
         </div>
-        <div className="absolute right-0 top-0 h-full w-1/2 bg-white/5 skew-x-12 transform translate-x-20 pointer-events-none group-hover:translate-x-16 transition-transform duration-1000"></div>
-        <div className="absolute -bottom-20 -right-20 w-[40rem] h-[40rem] bg-white/10 rounded-full blur-[120px] pointer-events-none group-hover:scale-110 transition-transform duration-1000"></div>
       </div>
 
       <section>
@@ -423,7 +427,7 @@ const Dashboard: React.FC<{ user: User, onOpenTool: (t: ModalType) => void, onOp
         </div>
         <div className="flex flex-wrap gap-4">
           {(isOffline ? [t("Offline Guide"), t("First Aid"), t("Local Contacts"), t("Emergency Map")] : [t("UPI Payments"), t("Aadhaar e-KYC"), t("Weather Alert"), t("Job Openings")]).map(c => (
-             <button key={c} className={`bg-white border-2 px-8 py-3.5 rounded-2xl text-sm font-black transition-all active:scale-95 uppercase tracking-widest ${isOffline ? 'border-amber-100 text-amber-600 hover:border-amber-500 hover:bg-amber-50 hover:shadow-amber-100' : 'border-gray-100 text-gray-500 hover:border-green-500 hover:text-green-700 hover:bg-green-50 hover:shadow-green-100'}`}>{c}</button>
+             <button key={c} className={`bg-white border-2 px-8 py-3.5 rounded-2xl text-sm font-black transition-all active:scale-95 uppercase tracking-widest ${isOffline ? 'border-amber-100 text-amber-600 hover:border-amber-500 hover:bg-amber-50' : 'border-gray-100 text-gray-500 hover:border-green-500 hover:text-green-700 hover:bg-green-50'}`}>{c}</button>
           ))}
         </div>
       </section>
@@ -435,55 +439,25 @@ const Dashboard: React.FC<{ user: User, onOpenTool: (t: ModalType) => void, onOp
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <Card onClick={() => onOpenTool(ModalType.RESUME)} className={`group bg-white border-2 border-gray-50 transition-all ${isOffline ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-blue-300'}`}>
-             <div className="bg-blue-50 w-16 h-16 rounded-3xl flex items-center justify-center text-blue-600 mb-6 group-hover:scale-110 transition-transform shadow-inner border border-blue-100"><Briefcase size={28}/></div>
+             <div className="bg-blue-50 w-16 h-16 rounded-3xl flex items-center justify-center text-blue-600 mb-6 group-hover:scale-110 transition-transform"><Briefcase size={28}/></div>
              <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Smart Resume Builder")}</h4>
              <p className="text-sm text-gray-400 font-medium leading-relaxed">{isOffline ? t("Limited Access") : t("Resume Description")}</p>
           </Card>
           <Card onClick={() => onOpenTool(ModalType.SCHEMES)} className={`group bg-white border-2 border-gray-50 transition-all ${isOffline ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-orange-300'}`}>
-             <div className="bg-orange-50 w-16 h-16 rounded-3xl flex items-center justify-center text-orange-600 mb-6 group-hover:scale-110 transition-transform shadow-inner border border-orange-100"><Landmark size={28}/></div>
+             <div className="bg-orange-50 w-16 h-16 rounded-3xl flex items-center justify-center text-orange-600 mb-6 group-hover:scale-110 transition-transform"><Landmark size={28}/></div>
              <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Scheme Matcher")}</h4>
              <p className="text-sm text-gray-400 font-medium leading-relaxed">{isOffline ? t("Limited Access") : t("Scheme Description")}</p>
           </Card>
           <Card onClick={() => onOpenTool(ModalType.MOBILITY)} className={`group bg-white border-2 border-gray-50 transition-all ${isOffline ? 'border-amber-100 hover:border-amber-300' : 'hover:border-purple-300'}`}>
-             <div className={`${isOffline ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-purple-50 text-purple-600 border-purple-100'} w-16 h-16 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-inner border`}><Navigation size={28}/></div>
+             <div className={`${isOffline ? 'bg-amber-50 text-amber-600' : 'bg-purple-50 text-purple-600'} w-16 h-16 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}><Navigation size={28}/></div>
              <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Mobility Planner")}</h4>
              <p className="text-sm text-gray-400 font-medium leading-relaxed">{isOffline ? t("Viewing Offline Maps") : t("Mobility Description")}</p>
           </Card>
           <Card onClick={() => onOpenTool(ModalType.GOVERNANCE)} className={`group bg-white border-2 border-gray-50 transition-all ${isOffline ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-red-300'}`}>
-             <div className="bg-red-50 w-16 h-16 rounded-3xl flex items-center justify-center text-red-600 mb-6 group-hover:scale-110 transition-transform shadow-inner border border-red-100"><Mic size={28}/></div>
+             <div className="bg-red-50 w-16 h-16 rounded-3xl flex items-center justify-center text-red-600 mb-6 group-hover:scale-110 transition-transform"><Mic size={28}/></div>
              <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Governance Aid")}</h4>
              <p className="text-sm text-gray-400 font-medium leading-relaxed">{isOffline ? t("Limited Access") : t("Governance Description")}</p>
           </Card>
-        </div>
-      </section>
-
-      <section>
-        <div className="flex items-center gap-4 mb-10">
-          <div className={`w-2 h-10 rounded-full ${isOffline ? 'bg-orange-500' : 'bg-emerald-500'}`}></div>
-          <h3 className={`font-black text-gray-900 uppercase tracking-tighter ${elderMode ? 'text-4xl' : 'text-3xl'}`}>{t("Essential Services")}</h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-           <Card onClick={() => onOpenTool(ModalType.MARKET)} className={`flex items-center gap-8 transition-all p-10 border-2 border-gray-50 group ${isOffline ? 'opacity-50 pointer-events-none' : 'hover:border-green-300 hover:bg-green-50/20'}`}>
-              <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center text-green-600 shrink-0 shadow-inner group-hover:scale-110 transition-transform duration-500"><ShoppingCart size={32}/></div>
-              <div>
-                <h4 className="font-black text-xl text-gray-900 mb-2 uppercase tracking-tight">{t("Kisan Mandi")}</h4>
-                <p className="text-gray-400 text-sm font-medium leading-snug">{isOffline ? t("Limited Access") : t("Market Description")}</p>
-              </div>
-           </Card>
-           <Card onClick={() => onOpenTool(ModalType.HEALTH_CHAT)} className={`flex items-center gap-8 transition-all p-10 border-2 border-gray-50 group ${isOffline ? 'opacity-50 pointer-events-none' : 'hover:border-pink-300 hover:bg-pink-50/20'}`}>
-              <div className="w-20 h-20 bg-pink-50 rounded-full flex items-center justify-center text-pink-600 shrink-0 shadow-inner group-hover:scale-110 transition-transform duration-500"><Heart size={32}/></div>
-              <div>
-                <h4 className="font-black text-xl text-gray-900 mb-2 uppercase tracking-tight">{t("Swasthya Saathi")}</h4>
-                <p className="text-gray-400 text-sm font-medium leading-snug">{isOffline ? t("Limited Access") : t("Health Description")}</p>
-              </div>
-           </Card>
-           <Card onClick={() => onOpenTool(ModalType.COMMUNITY_HELP)} className={`flex items-center gap-8 transition-all p-10 border-2 border-gray-50 group ${isOffline ? 'border-amber-200 hover:border-amber-400 hover:bg-amber-50/20' : 'hover:border-emerald-400 hover:bg-emerald-50/20'}`}>
-              <div className={`w-20 h-20 rounded-full flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform duration-500 ${isOffline ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}><HandHelping size={32}/></div>
-              <div>
-                <h4 className="font-black text-xl text-gray-900 mb-2 uppercase tracking-tight">{t("Community Help")}</h4>
-                <p className="text-gray-400 text-sm font-medium leading-snug">{isOffline ? t("View Downloaded Requests") : t("Community Description")}</p>
-              </div>
-           </Card>
         </div>
       </section>
 
@@ -493,24 +467,18 @@ const Dashboard: React.FC<{ user: User, onOpenTool: (t: ModalType) => void, onOp
              <div className={`w-2 h-10 rounded-full ${isOffline ? 'bg-amber-400' : 'bg-yellow-400'}`}></div>
              <h3 className={`font-black text-gray-900 uppercase tracking-tighter ${elderMode ? 'text-4xl' : 'text-3xl'}`}>{t("Learning Modules")}</h3>
            </div>
-           <button className={`text-xs font-black uppercase tracking-widest hover:underline decoration-4 underline-offset-8 ${isOffline ? 'text-amber-700' : 'text-green-700'}`}>{isOffline ? t("Offline Content") : t("All Resources")}</button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
            {learningModules.map(module => (
-             <div key={module.id} className={`bg-white border-2 rounded-[2.5rem] p-8 transition-all flex flex-col h-full group ${isOffline ? 'border-amber-50 hover:border-amber-300 hover:shadow-amber-100' : 'border-gray-50 hover:shadow-2xl hover:shadow-green-100 hover:border-green-100'}`}>
+             <div key={module.id} className={`bg-white border-2 rounded-[2.5rem] p-8 transition-all flex flex-col h-full group ${isOffline ? 'border-amber-50 hover:border-amber-300' : 'border-gray-50 hover:shadow-2xl hover:border-green-100'}`}>
                <div className="flex justify-between items-start mb-8">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl group-hover:rotate-12 transition-transform shadow-inner border ${isOffline ? 'bg-amber-50 border-amber-100' : 'bg-gray-50 border-gray-100'}`}>{module.icon}</div>
-                  {isOffline && <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest border border-amber-100 px-3 py-1.5 rounded-xl bg-amber-50 flex items-center gap-1.5"><WifiOff size={10}/> {t("Downloaded")}</span>}
-                  {!isOffline && <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest border border-gray-100 px-3 py-1.5 rounded-xl bg-gray-50">{module.category}</span>}
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl transition-transform border ${isOffline ? 'bg-amber-50 border-amber-100' : 'bg-gray-50 border-gray-100'}`}>{module.icon}</div>
                </div>
                <h4 className={`font-black mb-3 text-xl uppercase tracking-tight transition-colors ${isOffline ? 'group-hover:text-amber-600 text-gray-700' : 'group-hover:text-green-600 text-gray-900'}`}>{module.title}</h4>
                <p className="text-gray-400 text-sm mb-10 flex-grow font-medium leading-relaxed">{module.description}</p>
                <Button onClick={() => onOpenLearning(module)} variant='secondary' className={`w-full text-xs font-black uppercase tracking-widest py-4 rounded-2xl ${isOffline ? 'bg-amber-100 text-amber-800' : ''}`}>{t("Start Learning")}</Button>
              </div>
            ))}
-        </div>
-        <div className="flex justify-center mt-20">
-           <Button variant="outline" className={`px-12 py-5 rounded-full border-2 text-sm font-black uppercase tracking-widest active:scale-95 ${isOffline ? 'border-amber-100 text-amber-600 hover:border-amber-300 hover:bg-amber-50' : ''}`} onClick={() => onOpenTool(ModalType.OFFLINE_RESOURCES)}>{isOffline ? t("Offline Resources") : t("Discover More")}</Button>
         </div>
       </section>
     </div>
@@ -525,7 +493,6 @@ export default function App() {
   const [elderMode, setElderMode] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   
-  // Persistent items state for Kisan Mandi
   const [marketItems, setMarketItems] = useState<MarketItem[]>([
     { id: '1', name: 'Organic Wheat', price: '₹25/kg', seller: 'Ramesh Kumar', location: 'Sonapur', contact: '9876543210', image: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&q=80&w=400' },
     { id: '2', name: 'Fresh Potatoes', price: '₹15/kg', seller: 'Savitri Devi', location: 'Village East', contact: '9123456780', image: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&q=80&w=400' }
@@ -540,23 +507,30 @@ export default function App() {
   const { t, language } = useLanguage();
 
   const handleLogin = (name?: string) => {
-    // If name is provided via FaceAuth, log in immediately. Otherwise check inputs.
     if (!name && !email) return;
     
+    if (name) {
+      setUser({ name, email: 'face-auth@grameen.com' });
+      setModal(ModalType.NONE);
+      setView(AppView.PORTAL);
+      return;
+    }
+
     setLoginLoading(true);
-    // Fake server delay only for password login. FaceAuth success skips this logic.
-    const loginAction = () => {
-      setUser({ name: name || email.split('@')[0], email: email || 'face-auth@grameen.com' });
+    setTimeout(() => {
+      setUser({ name: email.split('@')[0], email });
       setLoginLoading(false);
       setModal(ModalType.NONE);
       setView(AppView.PORTAL);
-    };
+    }, 1000);
+  };
 
-    if (name) {
-      loginAction();
-    } else {
-      setTimeout(loginAction, 1000);
-    }
+  const handleLogout = () => {
+    setUser(null);
+    setView(AppView.LANDING);
+    setModal(ModalType.NONE);
+    setEmail('');
+    setPassword('');
   };
 
   return (
@@ -567,6 +541,7 @@ export default function App() {
             user={user} 
             onViewChange={setView} 
             onLogin={() => setModal(ModalType.LOGIN)} 
+            onLogout={handleLogout}
             onVision={() => setModal(ModalType.VISION)}
           />
         )}
@@ -609,18 +584,15 @@ export default function App() {
         <Modal isOpen={modal === ModalType.LOGIN} onClose={() => setModal(ModalType.NONE)} title={t("Welcome")} maxWidth="max-w-md">
           <div className="space-y-6 pt-2">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">{t("Access Dashboard")}</p>
-            
             <div className="space-y-4">
               <Input label={t("Email Address")} placeholder="name@village.com" value={email} onChange={e => setEmail(e.target.value)} />
               <Input label={t("Password")} type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
               <Button onClick={() => handleLogin()} isLoading={loginLoading} className="w-full py-4 font-black uppercase tracking-widest rounded-2xl">{t("Sign In")}</Button>
             </div>
-
             <div className="relative py-4">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
               <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest text-gray-300"><span className="bg-white px-4">OR</span></div>
             </div>
-
             <FaceAuth onSuccess={(name) => handleLogin(name)} language={language} />
           </div>
         </Modal>
@@ -631,15 +603,7 @@ export default function App() {
         <GovernanceModal isOpen={modal === ModalType.GOVERNANCE} onClose={() => setModal(ModalType.NONE)} language={language} />
         <ChatModal isOpen={modal === ModalType.HEALTH_CHAT} onClose={() => setModal(ModalType.NONE)} language={language} />
         <GlobalChatModal isOpen={modal === ModalType.GLOBAL_CHAT} onClose={() => setModal(ModalType.NONE)} language={language} />
-        
-        <KisanModal 
-          isOpen={modal === ModalType.MARKET} 
-          onClose={() => setModal(ModalType.NONE)} 
-          language={language}
-          items={marketItems}
-          setItems={setMarketItems}
-        />
-        
+        <KisanModal isOpen={modal === ModalType.MARKET} onClose={() => setModal(ModalType.NONE)} language={language} items={marketItems} setItems={setMarketItems} />
         <VisionModal isOpen={modal === ModalType.VISION} onClose={() => setModal(ModalType.NONE)} language={language} />
         <OfflineResourcesModal isOpen={modal === ModalType.OFFLINE_RESOURCES} onClose={() => setModal(ModalType.NONE)} language={language} />
         <CommunityHelpModal isOpen={modal === ModalType.COMMUNITY_HELP} onClose={() => setModal(ModalType.NONE)} language={language} />

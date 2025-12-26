@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 
@@ -24,8 +25,7 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { 
   );
 };
 
-// Fix: Updated Input component to accept an optional 'icon' prop and render it inside the input field.
-export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label?: string; icon?: React.ReactNode }> = ({ label, icon, className = '', ...props }) => (
+export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label?: string; icon?: React.ReactNode; rightIcon?: React.ReactNode }> = ({ label, icon, rightIcon, className = '', ...props }) => (
   <div className="flex flex-col gap-1 w-full">
     {label && <label className="text-sm font-medium text-gray-700">{label}</label>}
     <div className="relative">
@@ -35,9 +35,14 @@ export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { lab
         </div>
       )}
       <input 
-        className={`px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all w-full ${icon ? 'pl-10' : ''} ${className}`}
+        className={`px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all w-full ${icon ? 'pl-10' : ''} ${rightIcon ? 'pr-10' : ''} ${className}`}
         {...props}
       />
+      {rightIcon && (
+        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+          {rightIcon}
+        </div>
+      )}
     </div>
   </div>
 );

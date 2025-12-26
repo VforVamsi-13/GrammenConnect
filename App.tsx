@@ -1,6 +1,6 @@
 
 import React, { useState, useContext, createContext, useEffect, useRef } from 'react';
-import { User as UserIcon, LogOut, Eye, Globe, BookOpen, Wifi, WifiOff, BarChart3, Cloud, Briefcase, Landmark, Navigation, ShoppingCart, Heart, Shield, GraduationCap, X, Mic, MessageCircle, ChevronDown, Download, ArrowRight, Sparkles, HandHelping, Check, AlertCircle, Scan, Camera, Loader2, Languages } from 'lucide-react';
+import { User as UserIcon, LogOut, Eye, Globe, BookOpen, Wifi, WifiOff, BarChart3, Cloud, Briefcase, Landmark, Navigation, ShoppingCart, Heart, Shield, GraduationCap, X, Mic, MessageCircle, ChevronDown, Download, ArrowRight, Sparkles, HandHelping, Check, AlertCircle, Scan, Camera, Loader2, Languages, Activity, HelpingHand, Volume2 } from 'lucide-react';
 import { User, AppView, ModalType, LearningModule, Language, MarketItem } from './types';
 import { Button, Card, Input, Modal } from './components/Shared';
 import { ResumeModal, SchemeModal, MobilityModal } from './components/ToolModals';
@@ -56,12 +56,12 @@ const LanguageSelector: React.FC = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-80 bg-white rounded-[2rem] shadow-3xl border border-gray-50 overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-300 py-3">
+        <div className="absolute right-0 mt-3 w-80 bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-gray-50 overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-300 py-3">
           <div className="px-6 py-3 border-b border-gray-50 mb-2 flex items-center justify-between">
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("Select Language")}</span>
             <Languages size={14} className="text-gray-300" />
           </div>
-          <div className="max-h-[360px] overflow-y-auto custom-scrollbar px-2 space-y-1">
+          <div className="max-h-[380px] overflow-y-auto custom-scrollbar px-2 space-y-1">
             {LANGUAGES.map((lang) => (
               <button
                 key={lang.code}
@@ -73,7 +73,7 @@ const LanguageSelector: React.FC = () => {
                 className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all group ${language === lang.code ? 'bg-green-600 text-white shadow-xl shadow-green-100' : 'text-gray-700 hover:bg-green-50 hover:text-green-700'}`}
               >
                 <div className="flex items-center gap-4">
-                  <span className="text-2xl group-hover:scale-110 transition-transform">{lang.flag}</span>
+                  <span className="text-3xl group-hover:scale-110 transition-transform">{lang.flag}</span>
                   <div className="flex flex-col items-start leading-tight">
                     <span className="text-sm font-black uppercase tracking-tight">{lang.localName}</span>
                     <span className={`text-[10px] font-bold uppercase tracking-widest ${language === lang.code ? 'text-green-100' : 'text-gray-400 group-hover:text-green-500'}`}>{lang.name}</span>
@@ -122,11 +122,9 @@ const FaceAuth: React.FC<{ onSuccess: (name: string) => void; language: Language
           height: { ideal: 480 }
         } 
       });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+      if (videoRef.current) videoRef.current.srcObject = stream;
     } catch (err) {
-      setError("Camera Access Denied. Please enable camera permissions.");
+      setError("Camera Access Denied.");
       setActive(false);
     }
   };
@@ -143,36 +141,29 @@ const FaceAuth: React.FC<{ onSuccess: (name: string) => void; language: Language
       const context = canvas.getContext('2d');
       if (!context) throw new Error("Canvas context failed");
       
-      canvas.width = 320;
-      canvas.height = 240;
+      canvas.width = 480;
+      canvas.height = 360;
       
       context.translate(canvas.width, 0);
       context.scale(-1, 1);
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       
-      const imageData = canvas.toDataURL('image/jpeg', 0.4);
+      const imageData = canvas.toDataURL('image/jpeg', 0.6);
       const base64 = imageData.split(',')[1];
 
       const prompt = `
-        Focus ONLY on the person in the very front center. 
-        IGNORE background patterns, shadows, or other objects.
-        Is there exactly one clear human face in the foreground?
+        Focus ONLY on the person in the foreground center. 
+        IGNORE background shadows or objects.
+        Is there one clear human face visible?
         Reply "YES" or "NO: [reason]".
       `;
 
-      const result = await generateVisionContent(
-        prompt, 
-        base64, 
-        "image/jpeg", 
-        language,
-        true 
-      );
-
+      const result = await generateVisionContent(prompt, base64, "image/jpeg", language, true);
       const normalizedResult = result.toUpperCase();
       
       if (normalizedResult.includes("YES")) {
         setIsSuccess(true);
-        setStatusText('OK');
+        setStatusText('Verified!');
         onSuccess("Verified Citizen");
       } else {
         const reason = result.includes("NO:") ? result.split("NO:")[1].trim() : "Ensure face is clear";
@@ -180,7 +171,6 @@ const FaceAuth: React.FC<{ onSuccess: (name: string) => void; language: Language
         setStatusText('');
       }
     } catch (err) {
-      console.error("Auth Error:", err);
       setError("Connection error.");
     } finally {
       setLoading(false);
@@ -228,21 +218,8 @@ const FaceAuth: React.FC<{ onSuccess: (name: string) => void; language: Language
 
       {!isSuccess && (
         <div className="flex gap-3 w-full">
-           <Button 
-              onClick={captureAndVerify} 
-              isLoading={loading} 
-              disabled={loading}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-700 py-4 font-black text-[10px] uppercase tracking-widest shadow-xl"
-            >
-              Scan
-            </Button>
-           <Button 
-              variant="outline" 
-              onClick={stopCamera} 
-              className="flex-1 py-4 font-black text-[10px] uppercase tracking-widest border-gray-200"
-            >
-              Cancel
-            </Button>
+           <Button onClick={captureAndVerify} isLoading={loading} disabled={loading} className="flex-1 bg-indigo-600 hover:bg-indigo-700 py-4 font-black text-[10px] uppercase tracking-widest shadow-xl">Scan</Button>
+           <Button variant="outline" onClick={stopCamera} className="flex-1 py-4 font-black text-[10px] uppercase tracking-widest border-gray-200">Cancel</Button>
         </div>
       )}
       <canvas ref={canvasRef} className="hidden" />
@@ -323,51 +300,23 @@ const Header: React.FC<{
   );
 };
 
-const Footer = () => {
-  const { t } = useLanguage();
-  return (
-    <footer className="bg-gray-900 text-gray-400 py-16 mt-auto">
-      <div className="max-w-7xl mx-auto px-4 text-center">
-        <div className="flex justify-center items-center gap-3 mb-10">
-          <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center text-white font-black text-xl">G</div>
-          <span className="font-black text-white text-2xl tracking-tighter">GrameenConnect</span>
-        </div>
-        <p className="mb-10 text-gray-500 max-w-md mx-auto font-medium leading-relaxed">{t("Empowering")}</p>
-        <div className="flex justify-center flex-wrap gap-x-12 gap-y-6 text-[10px] font-black uppercase tracking-[0.2em]">
-          <a href="#" className="hover:text-white transition-colors">{t("Privacy Policy")}</a>
-          <a href="#" className="hover:text-white transition-colors">{t("Accessibility")}</a>
-          <a href="#" className="hover:text-white transition-colors">{t("Volunteer")}</a>
-        </div>
-        <div className="mt-16 pt-10 border-t border-gray-800 text-[10px] font-bold text-gray-600 uppercase tracking-widest">
-          © 2024 GRAMEENCONNECT INITIATIVE. ALL RIGHTS RESERVED.
-        </div>
-      </div>
-    </footer>
-  );
-};
-
 const LandingPage: React.FC<{ onGetStarted: () => void }> = ({ onGetStarted }) => {
   const { elderMode, isOffline } = useContext(AppContext);
   const { t, language } = useLanguage();
-  const appName = t("GrameenConnect");
   
   return (
     <div className="flex flex-col items-center w-full min-h-screen">
-      <div className="w-full bg-gradient-to-b from-green-100/30 via-white to-white py-32 px-4 text-center flex flex-col items-center justify-center min-h-[85vh] pb-56">
-        <div className={`inline-flex items-center gap-3 bg-white border px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-[0.3em] mb-14 shadow-sm animate-in fade-in slide-in-from-top-6 duration-1000 transition-colors ${isOffline ? 'text-amber-700 border-amber-100' : 'text-green-700 border-green-100'}`}>
-          <Shield size={16} className={isOffline ? 'fill-amber-100' : 'fill-green-100'} /> {t("Trusted by")}
+      <div className="w-full bg-gradient-to-b from-green-100/30 via-white to-white py-32 px-4 text-center flex flex-col items-center justify-center min-h-[80vh] pb-56">
+        <div className={`inline-flex items-center gap-3 bg-white border px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-[0.3em] mb-14 shadow-sm animate-in fade-in slide-in-from-top-6 duration-1000 ${isOffline ? 'text-amber-700 border-amber-100' : 'text-green-700 border-green-100'}`}>
+          <Shield size={16} /> {t("Trusted by Thousands")}
         </div>
         
         <h1 className={`font-black text-gray-900 mb-10 leading-[1.05] tracking-tighter max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-200 ${elderMode ? 'text-7xl md:text-[10rem]' : 'text-6xl md:text-9xl'}`}>
-          {language === 'en' ? (
-             <>Grameen<span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600">Connect</span></>
-          ) : (
-             <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600 leading-tight">{appName}</span>
-          )}
+           {t("GrameenConnect")}
         </h1>
         
         <p className={`text-gray-500 max-w-3xl mx-auto mb-20 leading-relaxed font-medium animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-400 ${elderMode ? 'text-3xl' : 'text-2xl'}`}>
-          {t("Empowering")}
+          {t("Empowering rural communities through digital access, education, and services.")}
         </p>
         
         <div className="animate-in fade-in zoom-in duration-1000 delay-600">
@@ -386,108 +335,152 @@ const LandingPage: React.FC<{ onGetStarted: () => void }> = ({ onGetStarted }) =
         <Card className="border-t-4 border-t-green-500 shadow-3xl bg-white p-12 flex flex-col items-center md:items-start text-center md:text-left group hover:-translate-y-6 transition-all duration-700">
           <div className="bg-green-50 w-24 h-24 rounded-[2.5rem] flex items-center justify-center text-green-600 mb-10 group-hover:rotate-12 transition-transform duration-500"><BookOpen size={44} /></div>
           <h3 className="text-3xl font-black mb-6 text-gray-900 uppercase tracking-tight leading-none">{t("Citizen Portal")}</h3>
-          <p className="text-gray-400 font-medium text-lg leading-relaxed">{t("Portal Description")}</p>
+          <p className="text-gray-400 font-medium text-lg leading-relaxed">{t("Access all services from one high-contrast, easy portal.")}</p>
         </Card>
         <Card className={`border-t-4 shadow-3xl bg-white p-12 flex flex-col items-center md:items-start text-center md:text-left group hover:-translate-y-6 transition-all duration-700 ${isOffline ? 'border-t-amber-500' : 'border-t-blue-500'}`}>
           <div className={`w-24 h-24 rounded-[2.5rem] flex items-center justify-center mb-10 group-hover:rotate-12 transition-transform duration-500 ${isOffline ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>{isOffline ? <WifiOff size={44} /> : <Wifi size={44} />}</div>
           <h3 className="text-3xl font-black mb-6 text-gray-900 uppercase tracking-tight leading-none">{t("Offline Ready")}</h3>
-          <p className="text-gray-400 font-medium text-lg leading-relaxed">{t("Offline Description")}</p>
+          <p className="text-gray-400 font-medium text-lg leading-relaxed">{t("No internet? No problem. Use our specialized offline tools.")}</p>
         </Card>
         <Card className="border-t-4 border-t-orange-500 shadow-3xl bg-white p-12 flex flex-col items-center md:items-start text-center md:text-left group hover:-translate-y-6 transition-all duration-700">
           <div className="bg-orange-50 w-24 h-24 rounded-[2.5rem] flex items-center justify-center text-orange-600 mb-10 group-hover:rotate-12 transition-transform duration-500"><BarChart3 size={44} /></div>
-          <h3 className="text-3xl font-black mb-6 text-gray-900 uppercase tracking-tight leading-none">{t("Admin Dashboard")}</h3>
-          <p className="text-gray-400 font-medium text-lg leading-relaxed">{t("Admin Description")}</p>
+          <h3 className="text-3xl font-black mb-6 text-gray-900 uppercase tracking-tight leading-none">{t("Admin Help")}</h3>
+          <p className="text-gray-400 font-medium text-lg leading-relaxed">{t("Assisting panchayats with data-driven governance tools.")}</p>
         </Card>
       </div>
     </div>
   );
 };
 
-const Dashboard: React.FC<{ user: User, onOpenTool: (t: ModalType) => void, onOpenLearning: (m: LearningModule) => void }> = ({ user, onOpenTool, onOpenLearning }) => {
+const Dashboard: React.FC<{ 
+  user: User, 
+  onOpenTool: (t: ModalType) => void, 
+  onOpenLearning: (m: LearningModule) => void,
+  openCommunity: (view: 'request' | 'volunteer') => void
+}> = ({ user, onOpenTool, onOpenLearning, openCommunity }) => {
   const { elderMode, isOffline } = useContext(AppContext);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   
   const learningModules: LearningModule[] = [
     { id: '1', title: t('UPI Payments Basics'), category: t('Finance'), description: t('Learn how to use BHIM and PhonePe safely.'), icon: '💸' },
     { id: '2', title: t('Telehealth Consultation'), category: t('Health'), description: t('How to book and attend a doctor appointment online.'), icon: '🩺' },
     { id: '3', title: t('Government Crop Insurance'), category: t('Agriculture'), description: t('Step-by-step guide to apply for PMFBY.'), icon: '🌾' },
-    { id: '4', title: t('Banking Security'), category: t('Finance'), description: t('Keep your bank account safe from fraud.'), icon: '🔐' },
-    { id: '5', title: t('Digital Land Records'), category: t('Government'), description: t('How to access and read digital land records.'), icon: '📜' },
-    { id: '6', title: t('Online School Admission'), category: t('Education'), description: t('Applying for school admission through online portals.'), icon: '🎒' },
+    { id: '4', title: t('Digital Literacy for Elders'), category: t('Education'), description: t('Simple guide to using smartphones and the internet.'), icon: '👵' },
+    { id: '5', title: t('Modern Farming Techniques'), category: t('Agriculture'), description: t('Increase yield with smart soil and water management.'), icon: '🚜' },
+    { id: '6', title: t('Basic First Aid & Emergency'), category: t('Health'), description: t('Essential medical steps for local emergencies.'), icon: '🩹' },
+    { id: '7', title: t('Women Entrepreneurship'), category: t('Business'), description: t('Small business ideas and funding for rural women.'), icon: '👩‍💼' },
+    { id: '8', title: t('Sustainable Living'), category: t('Environment'), description: t('Solar energy and water conservation at home.'), icon: '🌱' },
   ];
 
+  const handleSpeak = (titleKey: string, descKey: string) => {
+    const text = `${t(titleKey)}. ${t(descKey)}`;
+    speak(text, language);
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-16 space-y-24 animate-in slide-in-from-bottom-12 duration-700">
-      <div className={`rounded-[4rem] p-16 md:p-24 text-white shadow-3xl relative overflow-hidden group transition-all duration-700 ${isOffline ? 'bg-gradient-to-br from-amber-600 via-orange-700 to-amber-900 shadow-amber-200' : 'bg-gradient-to-br from-green-600 via-emerald-700 to-green-900 shadow-green-200'}`}>
+    <div className="max-w-7xl mx-auto px-4 py-16 space-y-20 animate-in slide-in-from-bottom-12 duration-700">
+      {/* Hero Banner */}
+      <div className={`rounded-[3.5rem] p-12 md:p-20 text-white shadow-3xl relative overflow-hidden group transition-all duration-700 ${isOffline ? 'bg-gradient-to-br from-amber-600 via-orange-700 to-amber-900 shadow-amber-200' : 'bg-gradient-to-br from-green-600 via-emerald-700 to-green-900 shadow-green-200'}`}>
         <div className="relative z-10 max-w-4xl">
           <div className="bg-white/10 backdrop-blur-md px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.3em] mb-8 inline-block border border-white/20">
             {isOffline ? t("Working Offline") : t("Portal Access Granted")}
           </div>
-          <h2 className={`font-black mb-8 tracking-tighter leading-[0.9] ${elderMode ? 'text-7xl md:text-9xl' : 'text-6xl md:text-8xl'}`}>{t("Citizen Portal")}</h2>
-          <p className="text-white text-2xl md:text-3xl opacity-80 leading-relaxed font-medium max-w-2xl">{isOffline ? t("Offline Notice") : t("Dashboard Hero")}</p>
+          <h2 className={`font-black mb-6 tracking-tighter leading-[0.9] ${elderMode ? 'text-7xl md:text-9xl' : 'text-5xl md:text-7xl'}`}>{t("Citizen Portal")}</h2>
+          <p className="text-white text-xl md:text-2xl opacity-80 leading-relaxed font-medium max-w-xl">{t("Explore government schemes, health aids, and local marketplaces.")}</p>
         </div>
-        <div className="absolute right-[-10%] bottom-[-10%] opacity-10 group-hover:scale-110 transition-transform duration-1000">
-           <Landmark size={400} />
+        <div className="absolute right-[-5%] bottom-[-5%] opacity-10 group-hover:scale-110 transition-transform duration-1000">
+           <Landmark size={320} />
         </div>
       </div>
 
+      {/* Essential Services Section */}
       <section>
-        <div className="flex items-center gap-5 mb-14">
-          <div className={`w-3 h-12 rounded-full transition-colors ${isOffline ? 'bg-amber-500 shadow-lg shadow-amber-100' : 'bg-green-500 shadow-lg shadow-green-100'}`}></div>
-          <h3 className={`font-black text-gray-900 uppercase tracking-tighter ${elderMode ? 'text-5xl' : 'text-4xl'}`}>{t("Recommended")}</h3>
+        <div className="flex items-center gap-5 mb-12">
+          <div className={`w-3 h-10 rounded-full transition-colors ${isOffline ? 'bg-amber-500 shadow-lg shadow-amber-100' : 'bg-green-500 shadow-lg shadow-green-100'}`}></div>
+          <h3 className={`font-black text-gray-900 uppercase tracking-tighter ${elderMode ? 'text-5xl' : 'text-3xl'}`}>{t("Essential Services")}</h3>
         </div>
-        <div className="flex flex-wrap gap-5">
-          {(isOffline ? [t("Offline Guide"), t("First Aid"), t("Local Contacts"), t("Emergency Map")] : [t("UPI Payments"), t("Aadhaar e-KYC"), t("Weather Alert"), t("Job Openings")]).map(c => (
-             <button key={c} className={`bg-white border-2 px-10 py-4.5 rounded-3xl text-sm font-black transition-all active:scale-95 uppercase tracking-widest shadow-sm ${isOffline ? 'border-amber-100 text-amber-600 hover:border-amber-500 hover:bg-amber-50' : 'border-gray-50 text-gray-500 hover:border-green-500 hover:text-green-700 hover:bg-green-50'}`}>{c}</button>
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <Card onClick={() => onOpenTool(ModalType.MARKET)} className="group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 hover:border-green-300 transition-all relative">
+             <button onClick={(e) => { e.stopPropagation(); handleSpeak("Kisan Mandi", "Market Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all"><Volume2 size={20}/></button>
+             <div className="bg-green-50 w-16 h-16 rounded-2xl flex items-center justify-center text-green-600 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all shadow-inner"><ShoppingCart size={28}/></div>
+             <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Kisan Mandi")}</h4>
+             <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Market Description")}</p>
+          </Card>
+          <Card onClick={() => onOpenTool(ModalType.HEALTH_CHAT)} className="group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 hover:border-pink-300 transition-all relative">
+             <button onClick={(e) => { e.stopPropagation(); handleSpeak("Swasthya Saathi", "Health Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-pink-600 hover:bg-pink-50 transition-all"><Volume2 size={20}/></button>
+             <div className="bg-pink-50 w-16 h-16 rounded-2xl flex items-center justify-center text-pink-600 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all shadow-inner"><Heart size={28}/></div>
+             <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Swasthya Saathi")}</h4>
+             <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Health Description")}</p>
+          </Card>
+          <div className="flex flex-col gap-4">
+             <button onClick={() => openCommunity('request')} className="flex-1 bg-indigo-50 border-2 border-indigo-100 rounded-[2rem] p-6 hover:bg-indigo-600 group transition-all active:scale-95 text-left shadow-sm relative">
+                <button onClick={(e) => { e.stopPropagation(); handleSpeak("Request Help", "Community Help"); }} className="absolute top-4 right-4 p-2 rounded-full bg-white/50 text-indigo-400 hover:text-white transition-all"><Volume2 size={16}/></button>
+                <div className="bg-white w-12 h-12 rounded-xl flex items-center justify-center text-indigo-600 mb-4 group-hover:bg-indigo-700 group-hover:text-white transition-all shadow-sm"><HandHelping size={24}/></div>
+                <h4 className="font-black text-indigo-900 text-base uppercase tracking-tight group-hover:text-white">{t("Request Help")}</h4>
+             </button>
+             <button onClick={() => openCommunity('volunteer')} className="flex-1 bg-amber-50 border-2 border-amber-100 rounded-[2rem] p-6 hover:bg-amber-600 group transition-all active:scale-95 text-left shadow-sm relative">
+                <button onClick={(e) => { e.stopPropagation(); handleSpeak("Be a Volunteer", "Community Help"); }} className="absolute top-4 right-4 p-2 rounded-full bg-white/50 text-amber-400 hover:text-white transition-all"><Volume2 size={16}/></button>
+                <div className="bg-white w-12 h-12 rounded-xl flex items-center justify-center text-amber-600 mb-4 group-hover:bg-amber-700 group-hover:text-white transition-all shadow-sm"><HelpingHand size={24}/></div>
+                <h4 className="font-black text-amber-900 text-base uppercase tracking-tight group-hover:text-white">{t("Be a Volunteer")}</h4>
+             </button>
+          </div>
+          <Card onClick={() => onOpenTool(ModalType.VISION)} className="group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 hover:border-purple-300 transition-all relative">
+             <button onClick={(e) => { e.stopPropagation(); handleSpeak("Vision Helper", "Analyze surroundings via camera."); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-all"><Volume2 size={20}/></button>
+             <div className="bg-purple-50 w-16 h-16 rounded-2xl flex items-center justify-center text-purple-600 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all shadow-inner"><Eye size={28}/></div>
+             <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Vision Helper")}</h4>
+             <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Analyze surroundings via camera.")}</p>
+          </Card>
         </div>
       </section>
 
+      {/* Tools Section */}
       <section>
-        <div className="flex items-center gap-5 mb-14">
-          <div className={`w-3 h-12 rounded-full ${isOffline ? 'bg-amber-400' : 'bg-blue-500'}`}></div>
-          <h3 className={`font-black text-gray-900 uppercase tracking-tighter ${elderMode ? 'text-5xl' : 'text-4xl'}`}>{t("Tools")}</h3>
+        <div className="flex items-center gap-5 mb-12">
+          <div className={`w-3 h-10 rounded-full transition-colors ${isOffline ? 'bg-amber-500 shadow-lg shadow-amber-100' : 'bg-blue-500 shadow-lg shadow-blue-100'}`}></div>
+          <h3 className={`font-black text-gray-900 uppercase tracking-tighter ${elderMode ? 'text-5xl' : 'text-3xl'}`}>{t("Tools")}</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-          <Card onClick={() => onOpenTool(ModalType.RESUME)} className={`group bg-white border-2 border-gray-50 rounded-[3rem] p-10 transition-all ${isOffline ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-blue-300'}`}>
-             <div className="bg-blue-50 w-20 h-20 rounded-[2rem] flex items-center justify-center text-blue-600 mb-8 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-inner"><Briefcase size={32}/></div>
-             <h4 className="font-black text-gray-900 text-xl uppercase tracking-tight mb-4 leading-none">{t("Smart Resume Builder")}</h4>
-             <p className="text-base text-gray-400 font-medium leading-relaxed">{isOffline ? t("Limited Access") : t("Resume Description")}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <Card onClick={() => onOpenTool(ModalType.RESUME)} className={`group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 transition-all relative ${isOffline ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-blue-300'}`}>
+             {!isOffline && <button onClick={(e) => { e.stopPropagation(); handleSpeak("Smart Resume Builder", "Resume Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all"><Volume2 size={20}/></button>}
+             <div className="bg-blue-50 w-16 h-16 rounded-2xl flex items-center justify-center text-blue-600 mb-6 shadow-inner"><Briefcase size={28}/></div>
+             <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Smart Resume Builder")}</h4>
+             <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Resume Description")}</p>
           </Card>
-          <Card onClick={() => onOpenTool(ModalType.SCHEMES)} className={`group bg-white border-2 border-gray-50 rounded-[3rem] p-10 transition-all ${isOffline ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-orange-300'}`}>
-             <div className="bg-orange-50 w-20 h-20 rounded-[2rem] flex items-center justify-center text-orange-600 mb-8 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-inner"><Landmark size={32}/></div>
-             <h4 className="font-black text-gray-900 text-xl uppercase tracking-tight mb-4 leading-none">{t("Scheme Matcher")}</h4>
-             <p className="text-base text-gray-400 font-medium leading-relaxed">{isOffline ? t("Limited Access") : t("Scheme Description")}</p>
+          <Card onClick={() => onOpenTool(ModalType.SCHEMES)} className={`group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 transition-all relative ${isOffline ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-orange-300'}`}>
+             {!isOffline && <button onClick={(e) => { e.stopPropagation(); handleSpeak("Scheme Matcher", "Scheme Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition-all"><Volume2 size={20}/></button>}
+             <div className="bg-orange-50 w-16 h-16 rounded-2xl flex items-center justify-center text-orange-600 mb-6 shadow-inner"><Landmark size={28}/></div>
+             <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Scheme Matcher")}</h4>
+             <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Scheme Description")}</p>
           </Card>
-          <Card onClick={() => onOpenTool(ModalType.MOBILITY)} className={`group bg-white border-2 border-gray-50 rounded-[3rem] p-10 transition-all ${isOffline ? 'border-amber-100 hover:border-amber-300' : 'hover:border-purple-300'}`}>
-             <div className={`${isOffline ? 'bg-amber-50 text-amber-600' : 'bg-purple-50 text-purple-600'} w-20 h-20 rounded-[2rem] flex items-center justify-center mb-8 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-inner`}><Navigation size={32}/></div>
-             <h4 className="font-black text-gray-900 text-xl uppercase tracking-tight mb-4 leading-none">{t("Mobility Planner")}</h4>
-             <p className="text-base text-gray-400 font-medium leading-relaxed">{isOffline ? t("Viewing Offline Maps") : t("Mobility Description")}</p>
+          <Card onClick={() => onOpenTool(ModalType.MOBILITY)} className={`group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 transition-all relative hover:border-purple-300`}>
+             <button onClick={(e) => { e.stopPropagation(); handleSpeak("Mobility Planner", "Mobility Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-all"><Volume2 size={20}/></button>
+             <div className="bg-purple-50 w-16 h-16 rounded-2xl flex items-center justify-center text-purple-600 mb-6 shadow-inner"><Navigation size={28}/></div>
+             <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Mobility Planner")}</h4>
+             <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Mobility Description")}</p>
           </Card>
-          <Card onClick={() => onOpenTool(ModalType.GOVERNANCE)} className={`group bg-white border-2 border-gray-50 rounded-[3rem] p-10 transition-all ${isOffline ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-red-300'}`}>
-             <div className="bg-red-50 w-20 h-20 rounded-[2rem] flex items-center justify-center text-red-600 mb-8 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-inner"><Mic size={32}/></div>
-             <h4 className="font-black text-gray-900 text-xl uppercase tracking-tight mb-4 leading-none">{t("Governance Aid")}</h4>
-             <p className="text-base text-gray-400 font-medium leading-relaxed">{isOffline ? t("Limited Access") : t("Governance Description")}</p>
+          <Card onClick={() => onOpenTool(ModalType.GOVERNANCE)} className={`group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 transition-all relative ${isOffline ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-red-300'}`}>
+             {!isOffline && <button onClick={(e) => { e.stopPropagation(); handleSpeak("Governance Aid", "Governance Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"><Volume2 size={20}/></button>}
+             <div className="bg-red-50 w-16 h-16 rounded-2xl flex items-center justify-center text-red-600 mb-6 shadow-inner"><Mic size={28}/></div>
+             <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Governance Aid")}</h4>
+             <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Governance Description")}</p>
           </Card>
         </div>
       </section>
 
-      <section className="pb-32">
-        <div className="flex justify-between items-end mb-16">
-           <div className="flex items-center gap-5">
-             <div className={`w-3 h-12 rounded-full ${isOffline ? 'bg-amber-400' : 'bg-yellow-400'}`}></div>
-             <h3 className={`font-black text-gray-900 uppercase tracking-tighter ${elderMode ? 'text-5xl' : 'text-4xl'}`}>{t("Learning Modules")}</h3>
-           </div>
+      {/* Learning Modules */}
+      <section className="pb-24">
+        <div className="flex items-center gap-5 mb-12">
+          <div className={`w-3 h-10 rounded-full transition-colors ${isOffline ? 'bg-amber-400 shadow-lg shadow-amber-100' : 'bg-yellow-400 shadow-lg shadow-yellow-100'}`}></div>
+          <h3 className={`font-black text-gray-900 uppercase tracking-tighter ${elderMode ? 'text-5xl' : 'text-3xl'}`}>{t("Learning Modules")}</h3>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
            {learningModules.map(module => (
-             <div key={module.id} className={`bg-white border-2 rounded-[3.5rem] p-10 transition-all flex flex-col h-full group ${isOffline ? 'border-amber-50 hover:border-amber-300 shadow-amber-50' : 'border-gray-50 hover:shadow-3xl hover:border-green-100 shadow-sm'}`}>
-               <div className="flex justify-between items-start mb-10">
-                  <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center text-4xl transition-all border ${isOffline ? 'bg-amber-50 border-amber-100' : 'bg-gray-50 border-gray-100 group-hover:bg-green-50 group-hover:border-green-100 group-hover:scale-110'}`}>{module.icon}</div>
-               </div>
-               <h4 className={`font-black mb-4 text-2xl uppercase tracking-tight transition-colors leading-tight ${isOffline ? 'group-hover:text-amber-600 text-gray-700' : 'group-hover:text-green-600 text-gray-900'}`}>{module.title}</h4>
-               <p className="text-gray-400 text-lg mb-12 flex-grow font-medium leading-relaxed">{module.description}</p>
-               <Button onClick={() => onOpenLearning(module)} variant='secondary' className={`w-full text-xs font-black uppercase tracking-[0.2em] py-5 rounded-2xl ${isOffline ? 'bg-amber-100 text-amber-800' : ''}`}>{t("Start Learning")}</Button>
+             <div key={module.id} className="bg-white border-2 border-gray-50 rounded-[3rem] p-8 transition-all flex flex-col h-full group hover:shadow-2xl hover:border-green-100 relative">
+               <button onClick={(e) => { e.stopPropagation(); handleSpeak(module.title, module.description); }} className="absolute top-8 right-8 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all"><Volume2 size={20}/></button>
+               <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-8 bg-gray-50 border border-gray-100">{module.icon}</div>
+               <h4 className="font-black mb-4 text-xl uppercase tracking-tight text-gray-900">{module.title}</h4>
+               <p className="text-gray-400 text-base mb-10 flex-grow font-medium leading-relaxed">{module.description}</p>
+               <Button onClick={() => onOpenLearning(module)} variant='secondary' className="w-full text-[10px] font-black uppercase tracking-widest py-4 rounded-xl">{t("Start Learning")}</Button>
              </div>
            ))}
         </div>
@@ -503,6 +496,9 @@ export default function App() {
   const [selectedModule, setSelectedModule] = useState<LearningModule | null>(null);
   const [elderMode, setElderMode] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
+  const [communityInitialView, setCommunityInitialView] = useState<'request' | 'volunteer'>('request');
+  const [healthQuery, setHealthQuery] = useState<string>('');
+  const [mobilityInitialData, setMobilityInitialData] = useState<{ start?: string; end?: string } | undefined>(undefined);
   
   const [marketItems, setMarketItems] = useState<MarketItem[]>([
     { id: '1', name: 'Organic Wheat', price: '₹25/kg', seller: 'Ramesh Kumar', location: 'Sonapur', contact: '9876543210', image: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&q=80&w=400' },
@@ -517,9 +513,21 @@ export default function App() {
   const toggleOffline = () => setIsOffline(!isOffline);
   const { t, language } = useLanguage();
 
+  // Sync isOffline with actual navigator status but keep manual toggle as priority
+  useEffect(() => {
+    const handleStatusChange = () => {
+      if (!navigator.onLine) setIsOffline(true);
+    };
+    window.addEventListener('online', handleStatusChange);
+    window.addEventListener('offline', handleStatusChange);
+    return () => {
+      window.removeEventListener('online', handleStatusChange);
+      window.removeEventListener('offline', handleStatusChange);
+    };
+  }, []);
+
   const handleLogin = (name?: string) => {
     if (!name && !email) return;
-    
     if (name) {
       setUser({ name, email: 'face-auth@grameen.com' });
       setModal(ModalType.NONE);
@@ -527,7 +535,6 @@ export default function App() {
       speak(t("Welcome") + " " + name, language);
       return;
     }
-
     setLoginLoading(true);
     setTimeout(() => {
       setUser({ name: email.split('@')[0], email });
@@ -538,33 +545,54 @@ export default function App() {
     }, 1000);
   };
 
-  const handleLogout = () => {
-    setUser(null);
-    setView(AppView.LANDING);
-    setModal(ModalType.NONE);
-    setEmail('');
-    setPassword('');
+  const handleOpenCommunity = (viewType: 'request' | 'volunteer') => {
+    setCommunityInitialView(viewType);
+    setModal(ModalType.COMMUNITY_HELP);
+  };
+
+  // Logic to handle SAHAYAK AI intent triggers
+  const handleSahayakAction = (intent: any) => {
+    // Standardize targets to App ModalTypes
+    const targetMap: Record<string, ModalType> = {
+      'kisan_mandi': ModalType.MARKET,
+      'swasthya_saathi': ModalType.HEALTH_CHAT,
+      'community_request': ModalType.COMMUNITY_HELP,
+      'community_volunteer': ModalType.COMMUNITY_HELP,
+      'resume_builder': ModalType.RESUME,
+      'mobility_planner': ModalType.MOBILITY,
+      'vision_helper': ModalType.VISION,
+      'schemes': ModalType.SCHEMES
+    };
+
+    const target = targetMap[intent.target] || ModalType.NONE;
+
+    if (intent.action === 'plan_mobility') {
+      setMobilityInitialData({ start: intent.source_location, end: intent.destination_location });
+      setModal(ModalType.MOBILITY);
+    } else if (intent.action === 'type_health_input') {
+      setHealthQuery(intent.text || '');
+      setModal(ModalType.HEALTH_CHAT);
+    } else if (target !== ModalType.NONE) {
+      if (intent.target === 'community_volunteer') setCommunityInitialView('volunteer');
+      else if (intent.target === 'community_request') setCommunityInitialView('request');
+      setModal(target);
+    }
   };
 
   return (
     <AppContext.Provider value={{ elderMode, toggleElderMode, isOffline, toggleOffline }}>
-      <div className={`min-h-screen flex flex-col bg-white font-sans selection:bg-green-100 selection:text-green-900 ${elderMode ? 'text-lg' : 'text-base'}`}>
-        {view !== AppView.LEARNING_DETAIL && (
-          <Header 
-            user={user} 
-            onViewChange={setView} 
-            onLogin={() => setModal(ModalType.LOGIN)} 
-            onLogout={handleLogout}
-            onVision={() => setModal(ModalType.VISION)}
-          />
-        )}
+      <div className={`min-h-screen flex flex-col bg-white font-sans ${elderMode ? 'text-lg' : 'text-base'}`}>
+        <Header 
+          user={user} 
+          onViewChange={setView} 
+          onLogin={() => setModal(ModalType.LOGIN)} 
+          onLogout={() => { setUser(null); setView(AppView.LANDING); }}
+          onVision={() => setModal(ModalType.VISION)}
+        />
         
-        <main className="flex-grow relative bg-white">
+        <main className="flex-grow">
           {view === AppView.LANDING && (
-            <LandingPage onGetStarted={() => {
-              if (user) setView(AppView.PORTAL);
-              else setModal(ModalType.LOGIN);
-            }} />
+            <LandingPage onGetStarted={() => user ? setView(AppView.PORTAL) : setModal(ModalType.LOGIN)} />
           )}
           
           {view === AppView.PORTAL && user && (
@@ -572,6 +600,7 @@ export default function App() {
               user={user} 
               onOpenTool={setModal} 
               onOpenLearning={(m) => { setSelectedModule(m); setView(AppView.LEARNING_DETAIL); }}
+              openCommunity={handleOpenCommunity}
             />
           )}
 
@@ -580,31 +609,30 @@ export default function App() {
           )}
 
           {user && !isOffline && (
-            <div className="fixed bottom-12 right-12 z-40 animate-in zoom-in duration-500">
-              <button 
-                onClick={() => setModal(ModalType.GLOBAL_CHAT)}
-                className="bg-green-600 hover:bg-green-700 text-white px-10 py-6 rounded-full shadow-[0_20px_60px_-15px_rgba(16,185,129,0.5)] transition-all hover:scale-110 active:scale-95 flex items-center gap-5 group border-4 border-white"
-              >
+            <div className="fixed bottom-12 right-12 z-40">
+              <button onClick={() => setModal(ModalType.GLOBAL_CHAT)} className="bg-green-600 hover:bg-green-700 text-white px-10 py-6 rounded-full shadow-[0_20px_60px_-15px_rgba(16,185,129,0.5)] transition-all hover:scale-110 active:scale-95 flex items-center gap-4 group border-4 border-white">
                 <MessageCircle size={32} className="fill-current" />
-                <span className="font-black uppercase tracking-[0.2em] hidden md:inline text-sm">{t("Sahayak AI")}</span>
+                <span className="font-black uppercase tracking-widest hidden md:inline text-sm">{t("Sahayak AI")}</span>
               </button>
             </div>
           )}
         </main>
         
-        {view !== AppView.LEARNING_DETAIL && <Footer />}
+        <footer className="bg-gray-900 text-gray-400 py-16 text-center">
+           <div className="max-w-7xl mx-auto px-4">
+              <span className="font-black text-white text-2xl tracking-tighter mb-4 block">GrameenConnect</span>
+              <p className="text-sm font-medium opacity-60">© 2024 GRAMEENCONNECT INITIATIVE.</p>
+           </div>
+        </footer>
 
         <Modal isOpen={modal === ModalType.LOGIN} onClose={() => setModal(ModalType.NONE)} title={t("Welcome")} maxWidth="max-w-md">
-          <div className="space-y-8 pt-4">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] text-center mb-2">{t("Access Dashboard")}</p>
-            <div className="space-y-5">
-              <Input label={t("Email Address")} placeholder="name@village.com" value={email} onChange={e => setEmail(e.target.value)} />
-              <Input label={t("Password")} type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
-              <Button onClick={() => handleLogin()} isLoading={loginLoading} className="w-full py-5 font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-green-100">{t("Sign In")}</Button>
-            </div>
-            <div className="relative py-4">
+          <div className="space-y-6">
+            <Input label={t("Email Address")} placeholder="name@village.com" value={email} onChange={e => setEmail(e.target.value)} />
+            <Input label={t("Password")} type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
+            <Button onClick={() => handleLogin()} isLoading={loginLoading} className="w-full py-4 rounded-xl font-black uppercase tracking-widest">{t("Sign In")}</Button>
+            <div className="relative flex justify-center text-[10px] font-black uppercase tracking-[0.4em] text-gray-300 py-2">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
-              <div className="relative flex justify-center text-[10px] font-black uppercase tracking-[0.4em] text-gray-300"><span className="bg-white px-6">OR</span></div>
+              <span className="bg-white px-4 relative">OR</span>
             </div>
             <FaceAuth onSuccess={(name) => handleLogin(name)} language={language} />
           </div>
@@ -612,14 +640,14 @@ export default function App() {
 
         <ResumeModal isOpen={modal === ModalType.RESUME} onClose={() => setModal(ModalType.NONE)} language={language} />
         <SchemeModal isOpen={modal === ModalType.SCHEMES} onClose={() => setModal(ModalType.NONE)} language={language} />
-        <MobilityModal isOpen={modal === ModalType.MOBILITY} onClose={() => setModal(ModalType.NONE)} language={language} />
+        <MobilityModal isOpen={modal === ModalType.MOBILITY} onClose={() => setModal(ModalType.NONE)} language={language} initialData={mobilityInitialData} />
         <GovernanceModal isOpen={modal === ModalType.GOVERNANCE} onClose={() => setModal(ModalType.NONE)} language={language} />
-        <ChatModal isOpen={modal === ModalType.HEALTH_CHAT} onClose={() => setModal(ModalType.NONE)} language={language} />
-        <GlobalChatModal isOpen={modal === ModalType.GLOBAL_CHAT} onClose={() => setModal(ModalType.NONE)} language={language} />
+        <ChatModal isOpen={modal === ModalType.HEALTH_CHAT} onClose={() => { setModal(ModalType.NONE); setHealthQuery(''); }} language={language} initialInput={healthQuery} />
+        <GlobalChatModal isOpen={modal === ModalType.GLOBAL_CHAT} onClose={() => setModal(ModalType.NONE)} language={language} onActionTrigger={handleSahayakAction} />
         <KisanModal isOpen={modal === ModalType.MARKET} onClose={() => setModal(ModalType.NONE)} language={language} items={marketItems} setItems={setMarketItems} />
         <VisionModal isOpen={modal === ModalType.VISION} onClose={() => setModal(ModalType.NONE)} language={language} />
+        <CommunityHelpModal isOpen={modal === ModalType.COMMUNITY_HELP} onClose={() => setModal(ModalType.NONE)} language={language} initialView={communityInitialView} />
         <OfflineResourcesModal isOpen={modal === ModalType.OFFLINE_RESOURCES} onClose={() => setModal(ModalType.NONE)} language={language} />
-        <CommunityHelpModal isOpen={modal === ModalType.COMMUNITY_HELP} onClose={() => setModal(ModalType.NONE)} language={language} />
       </div>
     </AppContext.Provider>
   );

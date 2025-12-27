@@ -26,7 +26,6 @@ const handleApiError = (error: any): string => {
   } else if (error instanceof Error) {
     errorMsg = error.message;
   } else if (error && typeof error === 'object') {
-    // Extract message from nested structures often found in API responses
     errorMsg = error.message || error.error?.message || JSON.stringify(error);
   } else {
     errorMsg = String(error);
@@ -34,7 +33,6 @@ const handleApiError = (error: any): string => {
 
   const lowMessage = errorMsg.toLowerCase();
   
-  // Catch 429, Resource Exhausted, Quota Exceeded, etc.
   if (
     lowMessage.includes("429") || 
     lowMessage.includes("quota") || 
@@ -45,7 +43,6 @@ const handleApiError = (error: any): string => {
     return "The AI assistant is taking a short break due to high demand. Please try again in about 60 seconds.";
   }
   
-  // Catch authentication issues
   if (
     lowMessage.includes("api key") || 
     lowMessage.includes("unauthorized") || 
@@ -54,8 +51,35 @@ const handleApiError = (error: any): string => {
     return "There is a temporary configuration issue with the AI service. Please try again later.";
   }
 
-  // Generic fallback
   return "I am having trouble connecting to the AI assistant right now. Please check your internet or try again in a moment.";
+};
+
+/**
+ * Geocoding helper using Gemini to find coordinates for accurate map placement.
+ */
+export const geocodeLocation = async (location: string): Promise<{ lat: number; lng: number } | null> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Find the latitude and longitude for the following location in India: "${location}". Return ONLY JSON.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            lat: { type: Type.NUMBER },
+            lng: { type: Type.NUMBER }
+          },
+          required: ["lat", "lng"]
+        }
+      }
+    });
+    return JSON.parse(response.text || '{}');
+  } catch (e) {
+    console.error("Geocoding failed for:", location, e);
+    return null;
+  }
 };
 
 /**
@@ -113,8 +137,9 @@ export const getMobilityPlan = async (
       console.debug("Geolocation skipped for planning.");
     }
 
-    const contents = `Find a safe and accessible route from "${start}" to "${end}" for a person using a "${aid}". 
-    Describe the path, road conditions, accessibility landmarks, and specific advice. 
+    const contents = `Find a high-accuracy, safe and accessible route from "${start}" to "${end}" for a person using a "${aid}". 
+    Describe specific path conditions: mention road width, presence of pavements, known steep slopes, and major landmarks. 
+    Use Google Maps grounding for real-time location data and accessibility features.
     MANDATORY: Use the ${langName} language and script.`;
 
     const response = await ai.models.generateContent({
@@ -127,8 +152,9 @@ export const getMobilityPlan = async (
             latLng: latLng
           }
         },
-        systemInstruction: `You are an expert Mobility and Accessibility Assistant for India. 
-        Provide clear, practical, and grounded navigation advice. Focus strictly on the locations mentioned.
+        systemInstruction: `You are an expert Indian Mobility and Accessibility Consultant. 
+        Provide practical, grounded, and hyper-accurate navigation advice. 
+        Focus strictly on safety and mobility aid compatibility.
         ${getLanguageInstruction(language)}`
       },
     });
@@ -288,11 +314,10 @@ INTENT CATEGORIES (target)
 ━━━━━━━━━━━━━━━━━━━━━━
 1. 'kisan_mandi': market, mandi, crops, sell, buy, bazaar.
 2. 'swasthya_saathi': doctor, fever, health, medicine, sickness.
-3. 'community_request': need help, assistant, volunteer request.
-4. 'resume_builder': resume, job, biodata, CV, work.
-5. 'mobility_planner': route, directions, path, safe way.
-6. 'vision_helper': camera, look, analyze, take photo.
-7. 'schemes': government schemes, yojana, benefits, govt.
+3. 'resume_builder': resume, job, biodata, CV, work.
+4. 'mobility_planner': route, directions, path, safe way.
+5. 'vision_helper': camera, look, analyze, take photo.
+6. 'schemes': government schemes, yojana, benefits, govt.
 
 ━━━━━━━━━━━━━━━━━━━━━━
 ACTION RULES
@@ -304,7 +329,7 @@ ACTION RULES
 OUTPUT RULES (STRICT JSON):
 {
   "action": "navigate | type_health_input | plan_mobility | unknown",
-  "target": "kisan_mandi | swasthya_saathi | community_request | resume_builder | mobility_planner | vision_helper | schemes | null",
+  "target": "kisan_mandi | swasthya_saathi | resume_builder | mobility_planner | vision_helper | schemes | null",
   "text": "Short confirmation string in ${langName}",
   "source_location": "string | null",
   "destination_location": "string | null"
@@ -318,8 +343,6 @@ OUTPUT RULES (STRICT JSON):
     
     const text = response.text || "";
     
-    // Check if the response is actually an error message returned from the API (if not using throw)
-    // although with @google/genai it usually throws.
     if (!text.trim().startsWith('{') || text.includes("too many requests") || text.includes("break")) {
       return { action: "unknown", text: text.includes("requests") ? text : "The assistant is busy right now. Please try again shortly." };
     }

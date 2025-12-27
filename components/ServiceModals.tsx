@@ -162,81 +162,6 @@ export const GovernanceModal: React.FC<{ isOpen: boolean; onClose: () => void; l
   );
 };
 
-export const CommunityHelpModal: React.FC<{ isOpen: boolean; onClose: () => void; language: Language; initialView?: 'request' | 'volunteer' }> = ({ isOpen, onClose, language, initialView = 'request' }) => {
-  const { t } = useLanguage();
-  const [view, setView] = useState<'request' | 'volunteer'>(initialView);
-  const [reqType, setReqType] = useState('Medical');
-  const [reqDesc, setReqDesc] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-
-  useEffect(() => {
-    if (isOpen && initialView) setView(initialView);
-  }, [isOpen, initialView]);
-
-  const activeRequests = [
-    { id: '1', type: t('Medical'), location: 'Ward 4, Sonapur', desc: 'Need urgent medicine transport for elderly patient.', status: 'Urgent', time: '10m ago' },
-    { id: '2', type: t('Documents'), location: 'Main Panchayat Office', desc: 'Need help reading pension form.', status: 'Pending', time: '1h ago' },
-  ];
-
-  const handleSubmit = () => {
-    if (!reqDesc.trim()) return;
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setSubmitted(true);
-      setTimeout(() => { setSubmitted(false); onClose(); setReqDesc(''); }, 2000);
-    }, 1500);
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={() => { onClose(); setSubmitted(false); }} title={t("Community Help")} maxWidth="max-w-lg">
-      <div className="flex p-1.5 bg-emerald-50 rounded-2xl mb-8 border border-emerald-100">
-        <button onClick={() => setView('request')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${view === 'request' ? 'bg-white text-emerald-700 shadow-md' : 'text-emerald-500 hover:text-emerald-600'}`}>{t("Request Help")}</button>
-        <button onClick={() => setView('volunteer')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${view === 'volunteer' ? 'bg-white text-emerald-700 shadow-md' : 'text-emerald-500 hover:text-emerald-600'}`}>{t("Be a Volunteer")}</button>
-      </div>
-
-      {submitted ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center animate-in zoom-in duration-500">
-           <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6 shadow-inner"><Check size={40} /></div>
-           <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter mb-2">{t("Success!")}</h3>
-           <p className="text-gray-500 font-medium">Request shared with local volunteers.</p>
-        </div>
-      ) : view === 'request' ? (
-        <div className="space-y-6">
-           <div className="grid grid-cols-2 gap-4">
-             <button onClick={() => setReqType('Medical')} className={`p-6 rounded-3xl border-4 transition-all active:scale-95 ${reqType === 'Medical' ? 'border-red-100 bg-red-50 text-red-600 shadow-lg' : 'border-gray-50 text-gray-400'}`}>
-                <Activity size={32} /> <span className="text-[10px] font-black uppercase tracking-widest mt-2 block">{t("Medical")}</span>
-             </button>
-             <button onClick={() => setReqType('Other')} className={`p-6 rounded-3xl border-4 transition-all active:scale-95 ${reqType === 'Other' ? 'border-blue-100 bg-blue-50 text-blue-600 shadow-lg' : 'border-gray-50 text-gray-400'}`}>
-                <HelpingHand size={32} /> <span className="text-[10px] font-black uppercase tracking-widest mt-2 block">{t("General")}</span>
-             </button>
-           </div>
-           <textarea className="w-full h-40 p-5 bg-gray-50 border-2 border-transparent rounded-2xl outline-none focus:bg-white focus:border-emerald-500 transition-all font-medium" placeholder="Describe what you need help with..." value={reqDesc} onChange={e => setReqDesc(e.target.value)} />
-           <Button onClick={handleSubmit} isLoading={loading} className="w-full bg-emerald-600 hover:bg-emerald-700 py-5 font-black uppercase tracking-widest rounded-2xl shadow-xl">{t("Request Help")}</Button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-           {activeRequests.map((req) => (
-             <div key={req.id} className="p-6 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-xl transition-all">
-                <div className="flex justify-between items-start mb-3">
-                   <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${req.status === 'Urgent' ? 'bg-red-50 text-red-600' : 'bg-yellow-50 text-yellow-600'}`}>{req.status}</span>
-                   <span className="text-[10px] text-gray-300 font-bold">{req.time}</span>
-                </div>
-                <h4 className="font-bold text-gray-900 mb-2 uppercase text-sm tracking-tight">{req.type}</h4>
-                <p className="text-gray-500 text-sm font-medium mb-4">{req.desc}</p>
-                <div className="flex items-center justify-between">
-                   <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1 uppercase"><MapPin size={12}/> {req.location}</span>
-                   <button className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all">{t("Help Now")}</button>
-                </div>
-             </div>
-           ))}
-        </div>
-      )}
-    </Modal>
-  );
-};
-
 export const GlobalChatModal: React.FC<{ isOpen: boolean; onClose: () => void; language: Language; onActionTrigger?: (action: any) => void }> = ({ isOpen, onClose, language, onActionTrigger }) => {
   const { t } = useLanguage();
   const [messages, setMessages] = useState<{role: 'user' | 'model', text: string}[]>([
@@ -272,7 +197,7 @@ export const GlobalChatModal: React.FC<{ isOpen: boolean; onClose: () => void; l
           }, 1500);
         }
       } else {
-        const text = sahayakResult.text || `I can help with: Kisan Mandi, Swasthya Saathi, Community Help, Resume, and Mobility Planner.`;
+        const text = sahayakResult.text || `I can help with: Kisan Mandi, Swasthya Saathi, Resume, and Mobility Planner.`;
         setMessages(prev => [...prev, { role: 'model', text: text }]);
         speak(text, language);
       }
@@ -494,7 +419,7 @@ export const KisanModal: React.FC<{
           contact: extracted.contact || prev.contact,
           location: extracted.location || prev.location
         }));
-        setSellStep(1); // Advance to photo upload after voice fill
+        setSellStep(1); 
       }
     };
     recognition.start();

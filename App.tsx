@@ -1,10 +1,10 @@
 
 import React, { useState, useContext, createContext, useEffect, useRef } from 'react';
-import { User as UserIcon, LogOut, Eye, Globe, BookOpen, Wifi, WifiOff, BarChart3, Cloud, Briefcase, Landmark, Navigation, ShoppingCart, Heart, Shield, GraduationCap, X, Mic, MessageCircle, ChevronDown, Download, ArrowRight, Sparkles, HandHelping, Check, AlertCircle, Scan, Camera, Loader2, Languages, Activity, HelpingHand, Volume2 } from 'lucide-react';
+import { User as UserIcon, LogOut, Eye, Globe, BookOpen, Wifi, WifiOff, BarChart3, Cloud, Briefcase, Landmark, Navigation, ShoppingCart, Heart, Shield, GraduationCap, X, Mic, MessageCircle, ChevronDown, Download, ArrowRight, Sparkles, HandHelping, Check, AlertCircle, Scan, Camera, Loader2, Languages, Activity, HelpingHand, Volume2, Sprout } from 'lucide-react';
 import { User, AppView, ModalType, LearningModule, Language, MarketItem } from './types';
 import { Button, Card, Input, Modal } from './components/Shared';
 import { ResumeModal, SchemeModal, MobilityModal } from './components/ToolModals';
-import { GovernanceModal, ChatModal, VisionModal, KisanModal, GlobalChatModal, OfflineResourcesModal, CommunityHelpModal } from './components/ServiceModals';
+import { GovernanceModal, ChatModal, VisionModal, KisanModal, GlobalChatModal, OfflineResourcesModal } from './components/ServiceModals';
 import { LearningViewer } from './components/LearningModule';
 import { useLanguage, LANGUAGES } from './contexts/LanguageContext';
 import { generateVisionContent } from './services/geminiService';
@@ -355,9 +355,8 @@ const LandingPage: React.FC<{ onGetStarted: () => void }> = ({ onGetStarted }) =
 const Dashboard: React.FC<{ 
   user: User, 
   onOpenTool: (t: ModalType) => void, 
-  onOpenLearning: (m: LearningModule) => void,
-  openCommunity: (view: 'request' | 'volunteer') => void
-}> = ({ user, onOpenTool, onOpenLearning, openCommunity }) => {
+  onOpenLearning: (m: LearningModule) => void
+}> = ({ user, onOpenTool, onOpenLearning }) => {
   const { elderMode, isOffline } = useContext(AppContext);
   const { t, language } = useLanguage();
   
@@ -377,6 +376,10 @@ const Dashboard: React.FC<{
     speak(text, language);
   };
 
+  const handleOpenPlantAI = () => {
+    window.open("https://plant-disease-prediction-using-cnn-q3ct.onrender.com/", "_blank");
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-16 space-y-20 animate-in slide-in-from-bottom-12 duration-700">
       {/* Hero Banner */}
@@ -393,18 +396,24 @@ const Dashboard: React.FC<{
         </div>
       </div>
 
-      {/* Essential Services Section */}
+      {/* Essential Services Section - 4 Columns Layout */}
       <section>
         <div className="flex items-center gap-5 mb-12">
           <div className={`w-3 h-10 rounded-full transition-colors ${isOffline ? 'bg-amber-500 shadow-lg shadow-amber-100' : 'bg-green-500 shadow-lg shadow-green-100'}`}></div>
           <h3 className={`font-black text-gray-900 uppercase tracking-tighter ${elderMode ? 'text-5xl' : 'text-3xl'}`}>{t("Essential Services")}</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card onClick={() => onOpenTool(ModalType.MARKET)} className="group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 hover:border-green-300 transition-all relative">
              <button onClick={(e) => { e.stopPropagation(); handleSpeak("Kisan Mandi", "Market Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all"><Volume2 size={20}/></button>
              <div className="bg-green-50 w-16 h-16 rounded-2xl flex items-center justify-center text-green-600 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all shadow-inner"><ShoppingCart size={28}/></div>
              <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Kisan Mandi")}</h4>
              <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Market Description")}</p>
+          </Card>
+          <Card onClick={handleOpenPlantAI} className="group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 hover:border-emerald-400 transition-all relative">
+             <button onClick={(e) => { e.stopPropagation(); handleSpeak("Plant Health AI", "Scan crops for diseases."); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"><Volume2 size={20}/></button>
+             <div className="bg-emerald-50 w-16 h-16 rounded-2xl flex items-center justify-center text-emerald-600 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all shadow-inner"><Sprout size={28}/></div>
+             <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Plant Health AI")}</h4>
+             <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Scan crops for diseases.")}</p>
           </Card>
           <Card onClick={() => onOpenTool(ModalType.HEALTH_CHAT)} className="group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 hover:border-pink-300 transition-all relative">
              <button onClick={(e) => { e.stopPropagation(); handleSpeak("Swasthya Saathi", "Health Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-pink-600 hover:bg-pink-50 transition-all"><Volume2 size={20}/></button>
@@ -412,18 +421,6 @@ const Dashboard: React.FC<{
              <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Swasthya Saathi")}</h4>
              <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Health Description")}</p>
           </Card>
-          <div className="flex flex-col gap-4">
-             <button onClick={() => openCommunity('request')} className="flex-1 bg-indigo-50 border-2 border-indigo-100 rounded-[2rem] p-6 hover:bg-indigo-600 group transition-all active:scale-95 text-left shadow-sm relative">
-                <button onClick={(e) => { e.stopPropagation(); handleSpeak("Request Help", "Community Help"); }} className="absolute top-4 right-4 p-2 rounded-full bg-white/50 text-indigo-400 hover:text-white transition-all"><Volume2 size={16}/></button>
-                <div className="bg-white w-12 h-12 rounded-xl flex items-center justify-center text-indigo-600 mb-4 group-hover:bg-indigo-700 group-hover:text-white transition-all shadow-sm"><HandHelping size={24}/></div>
-                <h4 className="font-black text-indigo-900 text-base uppercase tracking-tight group-hover:text-white">{t("Request Help")}</h4>
-             </button>
-             <button onClick={() => openCommunity('volunteer')} className="flex-1 bg-amber-50 border-2 border-amber-100 rounded-[2rem] p-6 hover:bg-amber-600 group transition-all active:scale-95 text-left shadow-sm relative">
-                <button onClick={(e) => { e.stopPropagation(); handleSpeak("Be a Volunteer", "Community Help"); }} className="absolute top-4 right-4 p-2 rounded-full bg-white/50 text-amber-400 hover:text-white transition-all"><Volume2 size={16}/></button>
-                <div className="bg-white w-12 h-12 rounded-xl flex items-center justify-center text-amber-600 mb-4 group-hover:bg-amber-700 group-hover:text-white transition-all shadow-sm"><HelpingHand size={24}/></div>
-                <h4 className="font-black text-amber-900 text-base uppercase tracking-tight group-hover:text-white">{t("Be a Volunteer")}</h4>
-             </button>
-          </div>
           <Card onClick={() => onOpenTool(ModalType.VISION)} className="group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 hover:border-purple-300 transition-all relative">
              <button onClick={(e) => { e.stopPropagation(); handleSpeak("Vision Helper", "Analyze surroundings via camera."); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-all"><Volume2 size={20}/></button>
              <div className="bg-purple-50 w-16 h-16 rounded-2xl flex items-center justify-center text-purple-600 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all shadow-inner"><Eye size={28}/></div>
@@ -496,7 +493,6 @@ export default function App() {
   const [selectedModule, setSelectedModule] = useState<LearningModule | null>(null);
   const [elderMode, setElderMode] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
-  const [communityInitialView, setCommunityInitialView] = useState<'request' | 'volunteer'>('request');
   const [healthQuery, setHealthQuery] = useState<string>('');
   const [mobilityInitialData, setMobilityInitialData] = useState<{ start?: string; end?: string } | undefined>(undefined);
   
@@ -513,7 +509,6 @@ export default function App() {
   const toggleOffline = () => setIsOffline(!isOffline);
   const { t, language } = useLanguage();
 
-  // Sync isOffline with actual navigator status but keep manual toggle as priority
   useEffect(() => {
     const handleStatusChange = () => {
       if (!navigator.onLine) setIsOffline(true);
@@ -545,19 +540,11 @@ export default function App() {
     }, 1000);
   };
 
-  const handleOpenCommunity = (viewType: 'request' | 'volunteer') => {
-    setCommunityInitialView(viewType);
-    setModal(ModalType.COMMUNITY_HELP);
-  };
-
   // Logic to handle SAHAYAK AI intent triggers
   const handleSahayakAction = (intent: any) => {
-    // Standardize targets to App ModalTypes
     const targetMap: Record<string, ModalType> = {
       'kisan_mandi': ModalType.MARKET,
       'swasthya_saathi': ModalType.HEALTH_CHAT,
-      'community_request': ModalType.COMMUNITY_HELP,
-      'community_volunteer': ModalType.COMMUNITY_HELP,
       'resume_builder': ModalType.RESUME,
       'mobility_planner': ModalType.MOBILITY,
       'vision_helper': ModalType.VISION,
@@ -573,8 +560,6 @@ export default function App() {
       setHealthQuery(intent.text || '');
       setModal(ModalType.HEALTH_CHAT);
     } else if (target !== ModalType.NONE) {
-      if (intent.target === 'community_volunteer') setCommunityInitialView('volunteer');
-      else if (intent.target === 'community_request') setCommunityInitialView('request');
       setModal(target);
     }
   };
@@ -600,7 +585,6 @@ export default function App() {
               user={user} 
               onOpenTool={setModal} 
               onOpenLearning={(m) => { setSelectedModule(m); setView(AppView.LEARNING_DETAIL); }}
-              openCommunity={handleOpenCommunity}
             />
           )}
 
@@ -646,7 +630,6 @@ export default function App() {
         <GlobalChatModal isOpen={modal === ModalType.GLOBAL_CHAT} onClose={() => setModal(ModalType.NONE)} language={language} onActionTrigger={handleSahayakAction} />
         <KisanModal isOpen={modal === ModalType.MARKET} onClose={() => setModal(ModalType.NONE)} language={language} items={marketItems} setItems={setMarketItems} />
         <VisionModal isOpen={modal === ModalType.VISION} onClose={() => setModal(ModalType.NONE)} language={language} />
-        <CommunityHelpModal isOpen={modal === ModalType.COMMUNITY_HELP} onClose={() => setModal(ModalType.NONE)} language={language} initialView={communityInitialView} />
         <OfflineResourcesModal isOpen={modal === ModalType.OFFLINE_RESOURCES} onClose={() => setModal(ModalType.NONE)} language={language} />
       </div>
     </AppContext.Provider>

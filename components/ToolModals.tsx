@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Input, Button } from './Shared';
-import { generateContent, getMobilityPlan, extractResumeDetails, extractSchemeDetails, extractMobilityDetails } from '../services/geminiService';
+import { generateContent, getMobilityPlan, extractResumeDetails, extractSchemeDetails, extractMobilityDetails, geocodeLocation } from '../services/geminiService';
 import { speak } from '../services/speechService';
 import { MapPin, User, Briefcase, GraduationCap, Mic, Volume2, ShieldCheck, AlertTriangle, Navigation, ExternalLink, Sparkles, ChevronRight, ChevronLeft, Flag } from 'lucide-react';
 import { Language } from '../types';
@@ -172,6 +172,7 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
   const [planningResult, setPlanningResult] = useState<{ text: string; links: { title: string; uri: string }[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [isVoiceFilling, setIsVoiceFilling] = useState(false);
+  const [coords, setCoords] = useState<{ start: {lat: number, lng: number}, end: {lat: number, lng: number} } | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<L.Map | null>(null);
   const { t } = useLanguage();
@@ -185,43 +186,57 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
 
   useEffect(() => {
     let timer: any;
-    if (wizardStep === 4 && mapRef.current) {
+    let resizeTimer: any;
+    
+    if (wizardStep === 4 && mapRef.current && coords) {
+      // Small screens often have keyboard retracting or animations finishing, so staggered timeouts help
       timer = setTimeout(() => {
         if (!mapRef.current || leafletMap.current) return;
-        
-        const hash = (str: string) => str.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-        const lat = 20.5937 + ((hash(data.start) % 400) - 200) / 1000; 
-        const lng = 78.9629 + ((hash(data.end) % 400) - 200) / 1000;
         
         try {
           leafletMap.current = L.map(mapRef.current, { 
             zoomControl: true, 
-            scrollWheelZoom: false 
-          }).setView([lat, lng], 13);
+            scrollWheelZoom: false,
+            dragging: !L.Browser.mobile,
+            tap: !L.Browser.mobile
+          }).setView([coords.start.lat, coords.start.lng], 13);
           
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
             attribution: '&copy; OpenStreetMap' 
           }).addTo(leafletMap.current);
           
-          L.marker([lat, lng]).addTo(leafletMap.current).bindPopup(`${t("Start Location")}: ${data.start}`).openPopup();
+          const startMarker = L.marker([coords.start.lat, coords.start.lng]).addTo(leafletMap.current).bindPopup(`${t("Start")}: ${data.start}`);
+          const endMarker = L.marker([coords.end.lat, coords.end.lng]).addTo(leafletMap.current).bindPopup(`${t("Destination")}: ${data.end}`);
           
-          // CRITICAL: Call invalidateSize after slight delay to handle modal rendering/small screens
-          setTimeout(() => leafletMap.current?.invalidateSize(), 200);
-          setTimeout(() => leafletMap.current?.invalidateSize(), 600);
-          setTimeout(() => leafletMap.current?.invalidateSize(), 1500);
+          // Only auto-open popup on larger screens to avoid obscuring map on mobile
+          if (window.innerWidth > 768) {
+            startMarker.openPopup();
+          }
+          
+          const group = new L.FeatureGroup([startMarker, endMarker]);
+          leafletMap.current.fitBounds(group.getBounds().pad(window.innerWidth < 768 ? 0.3 : 0.2));
+
+          // Critical for Leaflet visibility in flex/scroll containers
+          resizeTimer = setInterval(() => {
+            leafletMap.current?.invalidateSize();
+          }, 500);
+          
+          // Stop invalidating after 2 seconds
+          setTimeout(() => clearInterval(resizeTimer), 2000);
         } catch (e) { 
           console.error("Map Error:", e); 
         }
-      }, 600);
+      }, 800);
     }
     return () => {
       clearTimeout(timer);
+      clearInterval(resizeTimer);
       if (leafletMap.current) { 
         leafletMap.current.remove(); 
         leafletMap.current = null; 
       }
     };
-  }, [wizardStep, data.start, data.end, t]);
+  }, [wizardStep, coords, data.start, data.end, t]);
 
   const handleVoiceFill = () => {
     if (!('webkitSpeechRecognition' in window)) return;
@@ -243,6 +258,20 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
 
   const startPlanning = async (s: string, e: string, a: string) => {
     setLoading(true);
+    
+    // Resolve coordinates for accurate map markers
+    const [startCoords, endCoords] = await Promise.all([
+      geocodeLocation(s),
+      geocodeLocation(e)
+    ]);
+
+    if (startCoords && endCoords) {
+      setCoords({ start: startCoords, end: endCoords });
+    } else {
+      // Fallback for demo if geocoding fails
+      setCoords({ start: { lat: 20.5937, lng: 78.9629 }, end: { lat: 21.1458, lng: 79.0882 } });
+    }
+
     const plan = await getMobilityPlan(s, e, a, language);
     setPlanningResult(plan);
     setLoading(false);
@@ -258,7 +287,7 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
   const prev = () => setWizardStep(wizardStep - 1);
 
   return (
-    <Modal isOpen={isOpen} onClose={() => { onClose(); setWizardStep(1); setPlanningResult(null); }} title={t("Mobility Planner")} maxWidth="max-w-4xl">
+    <Modal isOpen={isOpen} onClose={() => { onClose(); setWizardStep(1); setPlanningResult(null); setCoords(null); }} title={t("Mobility Planner")} maxWidth="max-w-4xl">
       <div className="space-y-6">
         {wizardStep < 4 && (
           <div className="bg-green-50 p-5 rounded-3xl border border-green-100 flex items-center justify-between shadow-sm">
@@ -327,11 +356,11 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
                        <a key={idx} href={link.uri} target="_blank" rel="noopener noreferrer" className="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-2 hover:bg-blue-100 transition-all"><ExternalLink size={14}/> {link.title}</a>
                      ))}
                    </div>
-                   {/* Responsive Map Height for small screens */}
-                   <div className="h-[50vh] min-h-[300px] max-h-[500px] w-full bg-gray-50 rounded-[2.5rem] overflow-hidden border-2 border-gray-100 shadow-inner relative">
-                      <div ref={mapRef} className="absolute inset-0 w-full h-full" style={{ zIndex: 1 }} />
+                   {/* Improved Responsive Map Wrapper */}
+                   <div className="h-[300px] sm:h-[400px] lg:h-[450px] w-full bg-gray-50 rounded-[2.5rem] overflow-hidden border-2 border-gray-100 shadow-inner relative z-0">
+                      <div ref={mapRef} className="absolute inset-0 w-full h-full" />
                    </div>
-                   <Button variant="outline" onClick={() => { setWizardStep(1); setPlanningResult(null); }} className="w-full py-4 rounded-3xl font-black uppercase tracking-widest text-[10px]">{t("Plan Another")}</Button>
+                   <Button variant="outline" onClick={() => { setWizardStep(1); setPlanningResult(null); setCoords(null); }} className="w-full py-4 rounded-3xl font-black uppercase tracking-widest text-[10px]">{t("Plan Another")}</Button>
                  </div>
                )}
             </div>

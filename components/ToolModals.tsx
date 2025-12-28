@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Input, Button } from './Shared';
 import { generateContent, getMobilityPlan, extractResumeDetails, extractSchemeDetails, extractMobilityDetails, geocodeLocation } from '../services/geminiService';
 import { speak } from '../services/speechService';
-import { MapPin, User, Briefcase, GraduationCap, Mic, Volume2, ShieldCheck, AlertTriangle, Navigation, ExternalLink, Sparkles, ChevronRight, ChevronLeft, Flag } from 'lucide-react';
+import { MapPin, User, Briefcase, GraduationCap, Mic, Volume2, ShieldCheck, AlertTriangle, Navigation, ExternalLink, Sparkles, ChevronRight, ChevronLeft, Flag, Map as MapIcon } from 'lucide-react';
 import { Language } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import ReactMarkdown from 'react-markdown';
@@ -32,7 +32,7 @@ export const ResumeModal: React.FC<{ isOpen: boolean; onClose: () => void; langu
 
   const generateResume = async () => {
     setLoading(true);
-    const prompt = `Create a professional resume summary for a rural worker based on this info: Name: ${data.name}, Location: ${data.location}, Skills: ${data.skills}, Experience: ${data.experience}, Education: ${data.education}. Format nicely with sections.`;
+    const prompt = `Create a professional resume summary for a rural worker based on this info in ${language}: Name: ${data.name}, Location: ${data.location}, Skills: ${data.skills}, Experience: ${data.experience}, Education: ${data.education}. Format nicely with sections.`;
     const res = await generateContent(prompt, language);
     setResult(res);
     setLoading(false);
@@ -116,7 +116,7 @@ export const SchemeModal: React.FC<{ isOpen: boolean; onClose: () => void; langu
 
   const findSchemes = async () => {
     setLoading(true);
-    const prompt = `List 3 government schemes for: Age ${data.age}, ${data.gender}, ${data.occupation}, ${data.state}, Income ${data.income}. Return names and brief benefits as bullet list.`;
+    const prompt = `List 3 government schemes for: Age ${data.age}, ${data.gender}, ${data.occupation}, ${data.state}, Income ${data.income}. Return names and brief benefits as bullet list in ${language}.`;
     const res = await generateContent(prompt, language, "Sarkari Scheme Assistant. Concise output.");
     setResult(res);
     setLoading(false);
@@ -165,13 +165,13 @@ export const SchemeModal: React.FC<{ isOpen: boolean; onClose: () => void; langu
   );
 };
 
-// --- Mobility Planner (Wizard UI) ---
+// --- Mobility Planner ---
 export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; language: Language; initialData?: { start?: string; end?: string } }> = ({ isOpen, onClose, language, initialData }) => {
   const [wizardStep, setWizardStep] = useState(1);
   const [data, setData] = useState({ start: '', end: '', aid: 'None' });
   const [planningResult, setPlanningResult] = useState<{ text: string; links: { title: string; uri: string }[] } | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isVoiceFilling, setIsVoiceFilling] = useState(false);
+  const [isVoiceActive, setIsVoiceActive] = useState<'start' | 'end' | null>(null);
   const [coords, setCoords] = useState<{ start: {lat: number, lng: number}, end: {lat: number, lng: number} } | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<L.Map | null>(null);
@@ -188,87 +188,93 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
     let timer: any;
     let resizeTimer: any;
     
-    if (wizardStep === 4 && mapRef.current && coords) {
-      // Small screens often have keyboard retracting or animations finishing, so staggered timeouts help
+    if (wizardStep === 4 && isOpen && mapRef.current && coords) {
       timer = setTimeout(() => {
-        if (!mapRef.current || leafletMap.current) return;
+        if (!mapRef.current) return;
         
         try {
+          if (leafletMap.current) {
+            leafletMap.current.remove();
+            leafletMap.current = null;
+          }
+
           leafletMap.current = L.map(mapRef.current, { 
             zoomControl: true, 
-            scrollWheelZoom: false,
-            dragging: !L.Browser.mobile,
-            tap: !L.Browser.mobile
-          }).setView([coords.start.lat, coords.start.lng], 13);
+            scrollWheelZoom: true,
+            dragging: true,
+            zoomAnimation: true
+          }).setView([coords.start.lat, coords.start.lng], 12);
           
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
             attribution: '&copy; OpenStreetMap' 
           }).addTo(leafletMap.current);
           
-          const startMarker = L.marker([coords.start.lat, coords.start.lng]).addTo(leafletMap.current).bindPopup(`${t("Start")}: ${data.start}`);
-          const endMarker = L.marker([coords.end.lat, coords.end.lng]).addTo(leafletMap.current).bindPopup(`${t("Destination")}: ${data.end}`);
-          
-          // Only auto-open popup on larger screens to avoid obscuring map on mobile
-          if (window.innerWidth > 768) {
-            startMarker.openPopup();
-          }
+          const startIcon = L.divIcon({
+            className: 'custom-marker',
+            html: `<div class="bg-emerald-600 text-white p-2 rounded-full shadow-lg border-2 border-white scale-125"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>`,
+            iconSize: [40, 40],
+            iconAnchor: [20, 40]
+          });
+
+          const endIcon = L.divIcon({
+            className: 'custom-marker',
+            html: `<div class="bg-red-600 text-white p-2 rounded-full shadow-lg border-2 border-white scale-125"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg></div>`,
+            iconSize: [40, 40],
+            iconAnchor: [20, 40]
+          });
+
+          const startMarker = L.marker([coords.start.lat, coords.start.lng], { icon: startIcon }).addTo(leafletMap.current).bindPopup(`<b>${t("Start")}:</b><br/>${data.start}`);
+          const endMarker = L.marker([coords.end.lat, coords.end.lng], { icon: endIcon }).addTo(leafletMap.current).bindPopup(`<b>${t("Destination")}:</b><br/>${data.end}`);
           
           const group = new L.FeatureGroup([startMarker, endMarker]);
-          leafletMap.current.fitBounds(group.getBounds().pad(window.innerWidth < 768 ? 0.3 : 0.2));
+          leafletMap.current.fitBounds(group.getBounds().pad(0.5));
 
-          // Critical for Leaflet visibility in flex/scroll containers
+          // Aggressive invalidation for modal transitions
           resizeTimer = setInterval(() => {
-            leafletMap.current?.invalidateSize();
-          }, 500);
+            if (leafletMap.current) {
+              leafletMap.current.invalidateSize();
+            }
+          }, 400);
           
-          // Stop invalidating after 2 seconds
-          setTimeout(() => clearInterval(resizeTimer), 2000);
+          setTimeout(() => clearInterval(resizeTimer), 4000);
         } catch (e) { 
-          console.error("Map Error:", e); 
+          console.error("Leaflet initialization failed:", e); 
         }
       }, 800);
     }
     return () => {
       clearTimeout(timer);
-      clearInterval(resizeTimer);
+      if (resizeTimer) clearInterval(resizeTimer);
       if (leafletMap.current) { 
         leafletMap.current.remove(); 
         leafletMap.current = null; 
       }
     };
-  }, [wizardStep, coords, data.start, data.end, t]);
+  }, [wizardStep, coords, isOpen, t, data.start, data.end]);
 
-  const handleVoiceFill = () => {
+  const handleVoiceInput = (field: 'start' | 'end') => {
     if (!('webkitSpeechRecognition' in window)) return;
     const recognition = new (window as any).webkitSpeechRecognition();
     recognition.lang = SPEECH_LANG_MAP[language] || 'en-IN';
-    recognition.onstart = () => setIsVoiceFilling(true);
-    recognition.onend = () => setIsVoiceFilling(false);
-    recognition.onresult = async (event: any) => {
+    recognition.onstart = () => setIsVoiceActive(field);
+    recognition.onend = () => setIsVoiceActive(null);
+    recognition.onresult = (event: any) => {
       const speech = event.results[0][0].transcript;
-      const extracted = await extractMobilityDetails(speech, language);
-      setData(prev => ({ ...prev, ...extracted }));
-      if (extracted.start && extracted.end) {
-          setWizardStep(4);
-          startPlanning(extracted.start, extracted.end, extracted.aid);
-      }
+      setData(prev => ({ ...prev, [field]: speech }));
     };
     recognition.start();
   };
 
   const startPlanning = async (s: string, e: string, a: string) => {
     setLoading(true);
-    
-    // Resolve coordinates for accurate map markers
     const [startCoords, endCoords] = await Promise.all([
       geocodeLocation(s),
       geocodeLocation(e)
     ]);
 
-    if (startCoords && endCoords) {
+    if (startCoords && endCoords && startCoords.lat) {
       setCoords({ start: startCoords, end: endCoords });
     } else {
-      // Fallback for demo if geocoding fails
       setCoords({ start: { lat: 20.5937, lng: 78.9629 }, end: { lat: 21.1458, lng: 79.0882 } });
     }
 
@@ -286,81 +292,132 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
 
   const prev = () => setWizardStep(wizardStep - 1);
 
+  const openInGoogleMaps = () => {
+    if (coords) {
+      window.open(`https://www.google.com/maps/dir/${coords.start.lat},${coords.start.lng}/${coords.end.lat},${coords.end.lng}/`, '_blank');
+    } else {
+      window.open(`https://www.google.com/maps/dir/${encodeURIComponent(data.start)}/${encodeURIComponent(data.end)}/`, '_blank');
+    }
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={() => { onClose(); setWizardStep(1); setPlanningResult(null); setCoords(null); }} title={t("Mobility Planner")} maxWidth="max-w-4xl">
-      <div className="space-y-6">
+      <div className="flex flex-col space-y-6">
         {wizardStep < 4 && (
-          <div className="bg-green-50 p-5 rounded-3xl border border-green-100 flex items-center justify-between shadow-sm">
-             <div className="flex items-center gap-4">
-               <div className="bg-green-600 text-white p-2.5 rounded-2xl shadow-lg"><Sparkles size={20}/></div>
-               <div>
-                 <p className="text-xs font-black text-green-800 uppercase tracking-widest">{t("Sahayak AI")}</p>
-                 <p className="text-[10px] text-green-600 font-bold uppercase mt-0.5">{isVoiceFilling ? t("Listening...") : t("Speak trip details")}</p>
-               </div>
-             </div>
-             <button onClick={handleVoiceFill} className={`p-4 rounded-full transition-all shadow-lg active:scale-90 ${isVoiceFilling ? 'bg-red-500 text-white animate-pulse' : 'bg-white text-green-600 border border-green-100'}`}><Mic size={24} /></button>
-          </div>
-        )}
-
-        {wizardStep < 4 && (
-          <div className="flex justify-between items-center px-2 mb-8">
+          <div className="flex justify-between items-center px-4 py-4 border-b border-gray-100 overflow-x-auto no-scrollbar">
             {[1, 2, 3].map(s => (
-              <div key={s} className="flex flex-col items-center gap-2">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black transition-all ${wizardStep >= s ? 'bg-green-600 text-white shadow-lg' : 'bg-gray-100 text-gray-400'}`}>{s}</div>
-                <span className={`text-[9px] font-black uppercase tracking-widest ${wizardStep === s ? 'text-green-600' : 'text-gray-300'}`}>
-                  {s === 1 ? t("Select Start") : s === 2 ? t("Select End") : t("Select Aid")}
+              <div key={s} className="flex flex-col items-center gap-1 flex-1 min-w-[80px] relative">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs transition-all z-10 ${wizardStep >= s ? 'bg-green-600 text-white shadow-md' : 'bg-gray-100 text-gray-400'}`}>{s}</div>
+                <span className={`text-[8px] font-black uppercase tracking-widest text-center ${wizardStep === s ? 'text-green-600' : 'text-gray-300'}`}>
+                  {s === 1 ? t("Start") : s === 2 ? t("Destination") : t("Aid")}
                 </span>
+                {s < 3 && <div className={`absolute top-4 left-1/2 w-full h-0.5 -z-0 ${wizardStep > s ? 'bg-green-600' : 'bg-gray-100'}`} />}
               </div>
             ))}
           </div>
         )}
 
-        <div className="min-h-[350px]">
+        <div className="flex-1 min-h-[300px]">
           {wizardStep === 1 && (
-            <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-               <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">{t("Select Start")}</h3>
-               <Input placeholder="Enter village or town..." value={data.start} onChange={e => setData({...data, start: e.target.value})} icon={<MapPin size={20}/>} className="py-4 px-6 text-lg" />
+            <div className="space-y-6 animate-in slide-in-from-right-4 duration-300 py-4">
+               <div className="flex items-center justify-between">
+                 <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">{t("Select Start")}</h3>
+                 <button 
+                  onClick={() => handleVoiceInput('start')} 
+                  className={`p-3 rounded-full shadow-lg transition-all active:scale-90 ${isVoiceActive === 'start' ? 'bg-red-500 animate-pulse text-white' : 'bg-green-50 text-green-600 border border-green-100 hover:bg-green-100'}`}
+                 >
+                   <Mic size={20} />
+                 </button>
+               </div>
+               <Input 
+                placeholder={t("Enter village or town...")} 
+                value={data.start} 
+                onChange={e => setData({...data, start: e.target.value})} 
+                icon={<MapPin size={20} className="text-green-500" />} 
+                className="py-5 px-6 text-lg rounded-2xl border-2 focus:border-green-500" 
+                autoFocus 
+               />
+               <div className="bg-gray-50 p-4 rounded-2xl border border-dashed border-gray-200">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
+                    <span className="text-green-600">Tip:</span> Use the microphone to speak your village name.
+                  </p>
+               </div>
             </div>
           )}
+
           {wizardStep === 2 && (
-            <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-               <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">{t("Select End")}</h3>
-               <Input placeholder="Enter destination..." value={data.end} onChange={e => setData({...data, end: e.target.value})} icon={<Flag size={20}/>} className="py-4 px-6 text-lg" />
+            <div className="space-y-6 animate-in slide-in-from-right-4 duration-300 py-4">
+               <div className="flex items-center justify-between">
+                 <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">{t("Select Destination")}</h3>
+                 <button 
+                  onClick={() => handleVoiceInput('end')} 
+                  className={`p-3 rounded-full shadow-lg transition-all active:scale-90 ${isVoiceActive === 'end' ? 'bg-red-500 animate-pulse text-white' : 'bg-green-50 text-green-600 border border-green-100 hover:bg-green-100'}`}
+                 >
+                   <Mic size={20} />
+                 </button>
+               </div>
+               <Input 
+                placeholder={t("Enter destination...")} 
+                value={data.end} 
+                onChange={e => setData({...data, end: e.target.value})} 
+                icon={<Flag size={20} className="text-red-500" />} 
+                className="py-5 px-6 text-lg rounded-2xl border-2 focus:border-green-500" 
+                autoFocus 
+               />
             </div>
           )}
+
           {wizardStep === 3 && (
-            <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-               <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">{t("Select Aid")}</h3>
-               <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-6 animate-in slide-in-from-right-4 duration-300 py-4">
+               <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">{t("Select Aid")}</h3>
+               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                  {['None', 'Wheelchair', 'Walking Stick', 'Crutches'].map(aid => (
-                    <button key={aid} onClick={() => setData({...data, aid})} className={`p-6 rounded-[2rem] border-4 transition-all flex flex-col items-center gap-3 ${data.aid === aid ? 'bg-green-50 border-green-500 text-green-700 shadow-xl' : 'bg-white border-gray-100 text-gray-400 hover:border-green-100'}`}>
-                       <span className="text-xs font-black uppercase tracking-widest">{t(aid)}</span>
+                    <button 
+                      key={aid} 
+                      onClick={() => setData({...data, aid})} 
+                      className={`p-5 rounded-2xl border-4 transition-all flex flex-col items-center justify-center gap-2 h-28 ${data.aid === aid ? 'bg-green-50 border-green-500 text-green-700 shadow-xl scale-105' : 'bg-white border-gray-50 text-gray-400 hover:border-green-100'}`}
+                    >
+                       <span className="text-[10px] font-black uppercase tracking-widest leading-none">{t(aid)}</span>
                     </button>
                  ))}
                </div>
             </div>
           )}
+
           {wizardStep === 4 && (
-            <div className="space-y-4 animate-in fade-in duration-500">
+            <div className="space-y-6 animate-in fade-in duration-500 py-2">
                {loading ? (
-                 <div className="flex flex-col items-center justify-center py-24 gap-4"><div className="animate-spin rounded-full h-12 w-12 border-4 border-green-500 border-t-transparent"></div><p className="text-xs font-black text-gray-400 uppercase tracking-widest">{t("Calculating Path")}</p></div>
+                 <div className="flex flex-col items-center justify-center py-20 gap-4">
+                   <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-500 border-t-transparent"></div>
+                   <p className="text-xs font-black text-gray-400 uppercase tracking-widest animate-pulse">{t("Calculating Path...")}</p>
+                 </div>
                ) : planningResult && (
-                 <div className="space-y-5">
-                   <div className="bg-emerald-50 border-2 border-emerald-100 rounded-[2.5rem] p-6 relative">
+                 <div className="flex flex-col space-y-6">
+                   <div className="bg-emerald-50 border-2 border-emerald-100 rounded-[2rem] p-6 relative shadow-sm">
                      <button onClick={() => speak(planningResult.text, language)} className="absolute top-4 right-4 p-3 bg-white text-emerald-600 rounded-full shadow-lg border border-emerald-50 hover:bg-emerald-600 hover:text-white transition-all"><Volume2 size={20} /></button>
-                     <h4 className="font-black text-emerald-800 uppercase tracking-tight mb-3 flex items-center gap-2"><ShieldCheck size={20}/> {t("Safe Route Found")}</h4>
-                     <ReactMarkdown className="text-emerald-700 text-sm font-medium leading-relaxed pr-10">{planningResult.text}</ReactMarkdown>
+                     <h4 className="font-black text-emerald-800 uppercase tracking-tight mb-3 flex items-center gap-2 text-sm"><ShieldCheck size={20}/> {t("Safe Route Found")}</h4>
+                     <div className="text-emerald-700 text-sm font-medium leading-relaxed pr-10">
+                        <ReactMarkdown className="prose prose-sm max-w-none">{planningResult.text}</ReactMarkdown>
+                     </div>
                    </div>
-                   <div className="flex flex-wrap gap-2">
+                   
+                   <div className="flex flex-wrap gap-3">
                      {planningResult.links.map((link, idx) => (
-                       <a key={idx} href={link.uri} target="_blank" rel="noopener noreferrer" className="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-2 hover:bg-blue-100 transition-all"><ExternalLink size={14}/> {link.title}</a>
+                       <a key={idx} href={link.uri} target="_blank" rel="noopener noreferrer" className="bg-blue-50 text-blue-700 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-2 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                         <ExternalLink size={14}/> {link.title}
+                       </a>
                      ))}
+                     <button onClick={openInGoogleMaps} className="bg-white text-emerald-600 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 flex items-center gap-2 hover:bg-emerald-600 hover:text-white transition-all shadow-sm ml-auto">
+                       <MapIcon size={14} /> {t("Google Maps")}
+                     </button>
                    </div>
-                   {/* Improved Responsive Map Wrapper */}
-                   <div className="h-[300px] sm:h-[400px] lg:h-[450px] w-full bg-gray-50 rounded-[2.5rem] overflow-hidden border-2 border-gray-100 shadow-inner relative z-0">
+
+                   <div className="h-[40vh] min-h-[300px] w-full bg-gray-50 rounded-[2.5rem] overflow-hidden border-2 border-gray-100 shadow-inner relative z-0">
                       <div ref={mapRef} className="absolute inset-0 w-full h-full" />
+                      {!coords && <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80 z-10"><p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Geocoding places...</p></div>}
                    </div>
-                   <Button variant="outline" onClick={() => { setWizardStep(1); setPlanningResult(null); setCoords(null); }} className="w-full py-4 rounded-3xl font-black uppercase tracking-widest text-[10px]">{t("Plan Another")}</Button>
+                   
+                   <Button variant="outline" onClick={() => { setWizardStep(1); setPlanningResult(null); setCoords(null); }} className="w-full py-5 rounded-2xl font-black uppercase tracking-widest text-xs border-2">{t("Plan Another")}</Button>
                  </div>
                )}
             </div>
@@ -368,9 +425,11 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
         </div>
 
         {wizardStep < 4 && (
-          <div className="flex gap-4 pt-6">
-            {wizardStep > 1 && <Button variant="outline" onClick={prev} className="flex-1 py-4 font-black uppercase tracking-widest rounded-2xl"><ChevronLeft size={18}/> {t("Previous")}</Button>}
-            <Button onClick={next} disabled={(wizardStep === 1 && !data.start) || (wizardStep === 2 && !data.end)} className="flex-1 py-4 font-black uppercase tracking-widest rounded-2xl shadow-lg">{wizardStep === 3 ? t("Find Safe Route") : t("Next")} <ChevronRight size={18}/></Button>
+          <div className="flex gap-4 pt-6 border-t border-gray-50 bg-white sticky bottom-0 z-20">
+            {wizardStep > 1 && <Button variant="outline" onClick={prev} className="flex-1 py-4 font-black uppercase tracking-widest rounded-2xl text-xs border-2"><ChevronLeft size={18}/> {t("Previous")}</Button>}
+            <Button onClick={next} disabled={(wizardStep === 1 && !data.start) || (wizardStep === 2 && !data.end)} className="flex-1 py-4 font-black uppercase tracking-widest rounded-2xl shadow-lg text-white text-xs">
+              {wizardStep === 3 ? t("Find Safe Route") : t("Next")} <ChevronRight size={18}/>
+            </Button>
           </div>
         )}
       </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Input, Button } from './Shared';
 import { generateContent, getMobilityPlan, extractResumeDetails, extractSchemeDetails, extractMobilityDetails, geocodeLocation } from '../services/geminiService';
@@ -211,14 +210,14 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
           
           const startIcon = L.divIcon({
             className: 'custom-marker',
-            html: `<div class="bg-emerald-600 text-white p-2 rounded-full shadow-lg border-2 border-white scale-125"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>`,
+            html: `<div class="bg-emerald-600 text-white p-2 rounded-full shadow-lg border-2 border-white scale-125 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>`,
             iconSize: [40, 40],
             iconAnchor: [20, 40]
           });
 
           const endIcon = L.divIcon({
             className: 'custom-marker',
-            html: `<div class="bg-red-600 text-white p-2 rounded-full shadow-lg border-2 border-white scale-125"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg></div>`,
+            html: `<div class="bg-red-600 text-white p-2 rounded-full shadow-lg border-2 border-white scale-125 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg></div>`,
             iconSize: [40, 40],
             iconAnchor: [20, 40]
           });
@@ -229,7 +228,7 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
           const group = new L.FeatureGroup([startMarker, endMarker]);
           leafletMap.current.fitBounds(group.getBounds().pad(0.5));
 
-          // Aggressive invalidation for modal transitions
+          // Ensure map container renders correctly within modal
           resizeTimer = setInterval(() => {
             if (leafletMap.current) {
               leafletMap.current.invalidateSize();
@@ -275,6 +274,7 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
     if (startCoords && endCoords && startCoords.lat) {
       setCoords({ start: startCoords, end: endCoords });
     } else {
+      // General India coords if specific search fails
       setCoords({ start: { lat: 20.5937, lng: 78.9629 }, end: { lat: 21.1458, lng: 79.0882 } });
     }
 
@@ -397,7 +397,10 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
                      <button onClick={() => speak(planningResult.text, language)} className="absolute top-4 right-4 p-3 bg-white text-emerald-600 rounded-full shadow-lg border border-emerald-50 hover:bg-emerald-600 hover:text-white transition-all"><Volume2 size={20} /></button>
                      <h4 className="font-black text-emerald-800 uppercase tracking-tight mb-3 flex items-center gap-2 text-sm"><ShieldCheck size={20}/> {t("Safe Route Found")}</h4>
                      <div className="text-emerald-700 text-sm font-medium leading-relaxed pr-10">
-                        <ReactMarkdown className="prose prose-sm max-w-none">{planningResult.text}</ReactMarkdown>
+                        {/* Fix: Wrapped ReactMarkdown in a div to apply className styles */}
+                        <div className="prose prose-sm max-w-none">
+                          <ReactMarkdown>{planningResult.text}</ReactMarkdown>
+                        </div>
                      </div>
                    </div>
                    
@@ -426,9 +429,9 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
 
         {wizardStep < 4 && (
           <div className="flex gap-4 pt-6 border-t border-gray-50 bg-white sticky bottom-0 z-20">
-            {wizardStep > 1 && <Button variant="outline" onClick={prev} className="flex-1 py-4 font-black uppercase tracking-widest rounded-2xl text-xs border-2"><ChevronLeft size={18}/> {t("Previous")}</Button>}
+            {wizardStep > 1 && <Button variant="outline" onClick={prev} className="flex-1 py-4 font-black uppercase tracking-widest rounded-2xl text-xs border-2">{t("Previous")}</Button>}
             <Button onClick={next} disabled={(wizardStep === 1 && !data.start) || (wizardStep === 2 && !data.end)} className="flex-1 py-4 font-black uppercase tracking-widest rounded-2xl shadow-lg text-white text-xs">
-              {wizardStep === 3 ? t("Find Safe Route") : t("Next")} <ChevronRight size={18}/>
+              {wizardStep === 3 ? t("Find Safe Route") : t("Next")}
             </Button>
           </div>
         )}

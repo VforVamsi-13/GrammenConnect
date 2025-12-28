@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Modal, Button, Input } from './Shared';
 import { generateContent, generateVisionContent, chatWithBot, transliterateText, recognizeSahayakIntent, extractMandiItem } from '../services/geminiService';
@@ -110,7 +109,10 @@ export const GovernanceModal: React.FC<{ isOpen: boolean; onClose: () => void; l
            {messages.map((m, i) => (
              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                <div className={`max-w-[85%] p-4 rounded-2xl text-sm font-medium relative group ${m.role === 'user' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-100 text-gray-800 shadow-sm'}`}>
-                 <ReactMarkdown className="prose prose-sm max-w-none">{m.text}</ReactMarkdown>
+                 {/* Fix: Wrapped ReactMarkdown in a div to apply className styles */}
+                 <div className="prose prose-sm max-w-none">
+                    <ReactMarkdown>{m.text}</ReactMarkdown>
+                 </div>
                  {m.role === 'model' && (
                    <button 
                     onClick={() => speak(m.text.replace(/[#*`]/g, ''), language)}
@@ -202,7 +204,10 @@ export const GlobalChatModal: React.FC<{ isOpen: boolean; onClose: () => void; l
            {messages.map((m, i) => (
              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                <div className={`max-w-[85%] p-4 rounded-2xl text-sm font-medium ${m.role === 'user' ? 'bg-green-600 text-white shadow-lg' : 'bg-gray-100 text-gray-800 shadow-sm'}`}>
-                 <ReactMarkdown className="prose prose-sm max-w-none prose-green">{m.text}</ReactMarkdown>
+                 {/* Fix: Wrapped ReactMarkdown in a div to apply className styles */}
+                 <div className="prose prose-sm max-w-none prose-green">
+                    <ReactMarkdown>{m.text}</ReactMarkdown>
+                 </div>
                </div>
              </div>
            ))}
@@ -257,7 +262,10 @@ export const ChatModal: React.FC<{ isOpen: boolean; onClose: () => void; languag
            {messages.map((m, i) => (
              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                <div className={`max-w-[85%] p-4 rounded-2xl text-sm font-medium ${m.role === 'user' ? 'bg-pink-600 text-white shadow-lg' : 'bg-gray-100 text-gray-800 shadow-sm'}`}>
-                 <ReactMarkdown className="prose prose-sm max-w-none prose-pink">{m.text}</ReactMarkdown>
+                 {/* Fix: Wrapped ReactMarkdown in a div to apply className styles */}
+                 <div className="prose prose-sm max-w-none prose-pink">
+                    <ReactMarkdown>{m.text}</ReactMarkdown>
+                 </div>
                </div>
              </div>
            ))}
@@ -302,8 +310,11 @@ export const VisionModal: React.FC<{ isOpen: boolean; onClose: () => void; langu
             <img src={image} className="max-h-64 mx-auto rounded-3xl object-contain shadow-2xl border-4 border-white" />
             {!result ? <Button onClick={analyzeImage} isLoading={loading} className="w-full py-4 font-black uppercase text-xs rounded-2xl">{t("Explain This")}</Button> : (
               <div className="bg-green-50 p-6 rounded-[2.5rem] border-2 border-green-100">
-                <ReactMarkdown className="text-gray-700 font-medium leading-relaxed prose prose-green max-w-none">{result}</ReactMarkdown>
-                <Button onClick={() => simulateDownload('Analysis.txt', result)} variant="outline" className="w-full mt-6 py-4 font-black text-xs rounded-2xl"><Download size={16} /> {t("Download Analysis")}</Button>
+                {/* Fix: Wrapped ReactMarkdown in a div to apply className styles */}
+                <div className="text-gray-700 font-medium leading-relaxed prose prose-green max-w-none">
+                  <ReactMarkdown>{result}</ReactMarkdown>
+                </div>
+                <Button onClick={() => simulateDownload('Analysis.txt', result || '')} variant="outline" className="w-full mt-6 py-4 font-black text-xs rounded-2xl"><Download size={16} /> {t("Download Analysis")}</Button>
               </div>
             )}
           </div>

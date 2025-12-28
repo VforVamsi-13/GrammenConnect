@@ -1,6 +1,6 @@
 
 import React, { useState, useContext, createContext, useEffect, useRef } from 'react';
-import { User as UserIcon, LogOut, Eye, Globe, BookOpen, Wifi, WifiOff, BarChart3, Cloud, Briefcase, Landmark, Navigation, ShoppingCart, Heart, Shield, GraduationCap, X, Mic, MessageCircle, ChevronDown, Download, ArrowRight, Sparkles, HandHelping, Check, AlertCircle, Scan, Camera, Loader2, Languages, Activity, HelpingHand, Volume2, Sprout } from 'lucide-react';
+import { User as UserIcon, LogOut, Eye, Globe, BookOpen, Wifi, WifiOff, BarChart3, Cloud, Briefcase, Landmark, Navigation, ShoppingCart, Heart, Shield, GraduationCap, X, Mic, MessageCircle, ChevronDown, Download, ArrowRight, Sparkles, HandHelping, Check, AlertCircle, Scan, Camera, Loader2, Languages, Activity, HelpingHand, Volume2, Sprout, UserPlus, Key } from 'lucide-react';
 import { User, AppView, ModalType, LearningModule, Language, MarketItem } from './types';
 import { Button, Card, Input, Modal } from './components/Shared';
 import { ResumeModal, SchemeModal, MobilityModal } from './components/ToolModals';
@@ -256,7 +256,15 @@ const Dashboard: React.FC<{
           <div className="bg-white/10 backdrop-blur-md px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.3em] mb-8 inline-block border border-white/20">
             {isOffline ? t("Working Offline") : t("Portal Access Granted")}
           </div>
-          <h2 className={`font-black mb-6 tracking-tighter leading-[0.9] ${elderMode ? 'text-7xl md:text-9xl' : 'text-5xl md:text-7xl'}`}>{t("Citizen Portal")}</h2>
+          <div className="flex items-center gap-4 mb-6">
+             <div className="bg-white/20 p-4 rounded-3xl backdrop-blur-md border border-white/30">
+               <UserIcon size={40} className="text-white" />
+             </div>
+             <div className="flex flex-col">
+               <span className="text-xs font-black uppercase tracking-[0.2em] text-white/70">{t("Welcome Back")}</span>
+               <h2 className={`font-black tracking-tighter leading-none ${elderMode ? 'text-6xl md:text-8xl' : 'text-4xl md:text-6xl'}`}>{user.name}</h2>
+             </div>
+          </div>
           <p className="text-white text-xl md:text-2xl opacity-80 leading-relaxed font-medium max-w-xl">{t("Explore government schemes, health aids, and local marketplaces.")}</p>
         </div>
         <div className="absolute right-[-5%] bottom-[-5%] opacity-10 group-hover:scale-110 transition-transform duration-1000">
@@ -374,10 +382,20 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const toggleElderMode = () => setElderMode(!elderMode);
   const toggleOffline = () => setIsOffline(!isOffline);
   const { t, language } = useLanguage();
+
+  // Initialize Local Auth Simulation
+  useEffect(() => {
+    const savedName = localStorage.getItem('grameen_user_name');
+    if (savedName) {
+      setUser({ name: savedName, email: `${savedName.toLowerCase()}@local.com` });
+      setView(AppView.PORTAL);
+    }
+  }, []);
 
   useEffect(() => {
     const handleStatusChange = () => {
@@ -391,23 +409,34 @@ export default function App() {
     };
   }, []);
 
-  const handleLogin = (name?: string) => {
-    if (!name && !email) return;
-    if (name) {
-      setUser({ name, email: 'face-auth@grameen.com' });
-      setModal(ModalType.NONE);
-      setView(AppView.PORTAL);
-      speak(t("Welcome") + " " + name, language);
+  const handleLogin = async (overrideName?: string) => {
+    const finalName = overrideName || nameInput;
+    if (!finalName.trim()) {
+      setLoginError("Please enter your name.");
       return;
     }
+    
     setLoginLoading(true);
+    setLoginError(null);
+
+    // Simulate network delay
     setTimeout(() => {
-      setUser({ name: email.split('@')[0], email });
-      setLoginLoading(false);
+      localStorage.setItem('grameen_user_name', finalName);
+      setUser({ name: finalName, email: `${finalName.toLowerCase()}@local.com` });
       setModal(ModalType.NONE);
       setView(AppView.PORTAL);
-      speak(t("Welcome"), language);
-    }, 1000);
+      
+      // Personalized registration speech confirmation
+      speak(`Welcome ${finalName}, your voice command name is now registered.`, language);
+      
+      setLoginLoading(false);
+    }, 800);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('grameen_user_name');
+    setUser(null);
+    setView(AppView.LANDING);
   };
 
   // Logic to handle SAHAYAK AI intent triggers
@@ -479,11 +508,36 @@ export default function App() {
           </div>
         </footer>
 
-        <Modal isOpen={modal === ModalType.LOGIN} onClose={() => setModal(ModalType.NONE)} title={t("Welcome")} maxWidth="max-w-md">
+        <Modal isOpen={modal === ModalType.LOGIN} onClose={() => { setModal(ModalType.NONE); setLoginError(null); }} title={t("Join GrameenConnect")} maxWidth="max-w-md">
           <div className="space-y-6">
-            <Input label={t("Email Address")} placeholder="name@village.com" value={email} onChange={e => setEmail(e.target.value)} />
-            <Input label={t("Password")} type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
-            <Button onClick={() => handleLogin()} isLoading={loginLoading} className="w-full py-4 rounded-xl font-black uppercase tracking-widest">{t("Sign In")}</Button>
+            <div className="bg-indigo-50 p-6 rounded-3xl flex flex-col items-center gap-4 border border-indigo-100 mb-2 text-center">
+               <div className="bg-indigo-600 text-white p-4 rounded-2xl shadow-xl shadow-indigo-100"><UserIcon size={32}/></div>
+               <div>
+                 <h4 className="font-black text-xs uppercase tracking-[0.2em] text-indigo-700 mb-1">{t("What is your name?")}</h4>
+                 <p className="text-xs font-bold text-indigo-500 opacity-70">{t("Enter your name to start using the portal.")}</p>
+               </div>
+            </div>
+            
+            <Input 
+              label={t("Your Name")} 
+              placeholder="e.g. Rajesh Kumar" 
+              value={nameInput} 
+              onChange={e => setNameInput(e.target.value)} 
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              autoFocus
+            />
+            
+            {loginError && (
+              <div className="bg-red-50 border border-red-100 rounded-xl p-3 flex items-center gap-2 text-red-600 text-xs font-bold animate-in zoom-in duration-300">
+                <AlertCircle size={16} />
+                <span>{loginError}</span>
+              </div>
+            )}
+            
+            <Button onClick={() => handleLogin()} isLoading={loginLoading} className="w-full py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-green-100 bg-green-600 text-white">
+               {t("Join Portal")} <ArrowRight size={20}/>
+            </Button>
+            
             <div className="relative flex justify-center text-[10px] font-black uppercase tracking-[0.4em] text-gray-300 py-2">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
               <span className="bg-white px-4 relative">OR</span>

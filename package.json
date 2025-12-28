@@ -9,12 +9,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react-dom": "^19.2.3",
     "@google/genai": "^1.33.0",
-    "react": "^19.2.3",
-    "react-markdown": "^10.1.0",
+    "@vladmandic/face-api": "^1.7.15",
+    "axios": "^1.13.2",
+    "leaflet": "1.9.4",
     "lucide-react": "^0.561.0",
-    "leaflet": "1.9.4"
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-markdown": "^10.1.0",
+    "react-webcam": "^7.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

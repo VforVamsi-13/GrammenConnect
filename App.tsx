@@ -9,6 +9,9 @@ import { LearningViewer } from './components/LearningModule';
 import { useLanguage, LANGUAGES } from './contexts/LanguageContext';
 import { generateVisionContent } from './services/geminiService';
 import { speak } from './services/speechService';
+import FaceAuthLogin from './components/FaceAuthLogin';
+// import { Modal } from './components/Shared';  // already imported, just ensure it's there
+// import { Scan } from 'lucide-react';
 
 // --- Context ---
 interface AppContextType {
@@ -18,18 +21,18 @@ interface AppContextType {
   toggleOffline: () => void;
 }
 
-const AppContext = createContext<AppContextType>({ 
-  elderMode: false, 
-  toggleElderMode: () => {}, 
+const AppContext = createContext<AppContextType>({
+  elderMode: false,
+  toggleElderMode: () => { },
   isOffline: false,
-  toggleOffline: () => {},
+  toggleOffline: () => { },
 });
 
 const LanguageSelector: React.FC = () => {
   const { language, setLanguage, t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  
+
   const currentLang = LANGUAGES.find(l => l.code === language) || LANGUAGES[0];
 
   useEffect(() => {
@@ -44,13 +47,13 @@ const LanguageSelector: React.FC = () => {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-all duration-300 group shadow-sm ${isOpen ? 'bg-green-50 border-green-200 ring-2 ring-green-100' : 'bg-white border-gray-100 hover:border-green-200'}`}
       >
         <div className="flex items-center gap-2">
-           <span className="text-xl leading-none">{currentLang.flag}</span>
-           <span className="text-sm font-black text-gray-800 tracking-tight">{currentLang.localName}</span>
+          <span className="text-xl leading-none">{currentLang.flag}</span>
+          <span className="text-sm font-black text-gray-800 tracking-tight">{currentLang.localName}</span>
         </div>
         <ChevronDown size={16} className={`text-gray-400 group-hover:text-green-600 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -65,8 +68,8 @@ const LanguageSelector: React.FC = () => {
             {LANGUAGES.map((lang) => (
               <button
                 key={lang.code}
-                onClick={() => { 
-                  setLanguage(lang.code); 
+                onClick={() => {
+                  setLanguage(lang.code);
                   setIsOpen(false);
                   speak(lang.localName, lang.code);
                 }}
@@ -89,150 +92,15 @@ const LanguageSelector: React.FC = () => {
   );
 };
 
-// --- Face Authentication Component ---
-const FaceAuth: React.FC<{ onSuccess: (name: string) => void; language: Language }> = ({ onSuccess, language }) => {
-  const [active, setActive] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [statusText, setStatusText] = useState<string>('');
-  const [isSuccess, setIsSuccess] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { t } = useLanguage();
+// FaceAuth component deleted as per request.
 
-  useEffect(() => {
-    return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
 
-  const startCamera = async () => {
-    setActive(true);
-    setError(null);
-    setStatusText('');
-    setIsSuccess(false);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'user',
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        } 
-      });
-      if (videoRef.current) videoRef.current.srcObject = stream;
-    } catch (err) {
-      setError("Camera Access Denied.");
-      setActive(false);
-    }
-  };
-
-  const captureAndVerify = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    setLoading(true);
-    setError(null);
-    setStatusText(t('Loading'));
-    
-    try {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const context = canvas.getContext('2d');
-      if (!context) throw new Error("Canvas context failed");
-      
-      canvas.width = 480;
-      canvas.height = 360;
-      
-      context.translate(canvas.width, 0);
-      context.scale(-1, 1);
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      const imageData = canvas.toDataURL('image/jpeg', 0.6);
-      const base64 = imageData.split(',')[1];
-
-      const prompt = `
-        Focus ONLY on the person in the foreground center. 
-        IGNORE background shadows or objects.
-        Is there one clear human face visible?
-        Reply "YES" or "NO: [reason]".
-      `;
-
-      const result = await generateVisionContent(prompt, base64, "image/jpeg", language, true);
-      const normalizedResult = result.toUpperCase();
-      
-      if (normalizedResult.includes("YES")) {
-        setIsSuccess(true);
-        setStatusText('Verified!');
-        onSuccess("Verified Citizen");
-      } else {
-        const reason = result.includes("NO:") ? result.split("NO:")[1].trim() : "Ensure face is clear";
-        setError(`Retry: ${reason.split('.')[0]}`);
-        setStatusText('');
-      }
-    } catch (err) {
-      setError("Connection error.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setActive(false);
-    setStatusText('');
-    setIsSuccess(false);
-  };
-
-  if (!active) {
-    return (
-      <button 
-        onClick={startCamera}
-        className="w-full flex items-center justify-center gap-3 bg-indigo-50 text-indigo-700 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] border-2 border-indigo-100 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all active:scale-95 shadow-sm"
-      >
-        <Scan size={18} /> Face Sign In
-      </button>
-    );
-  }
-
-  return (
-    <div className="space-y-6 flex flex-col items-center animate-in zoom-in duration-300">
-      <div className={`relative w-64 h-64 rounded-full overflow-hidden border-4 transition-all duration-300 shadow-2xl bg-black ${isSuccess ? 'border-green-500' : error ? 'border-red-500' : loading ? 'border-indigo-400' : 'border-gray-200'}`}>
-        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
-        {!loading && !error && !isSuccess && <div className="animate-scan" />}
-        {(loading || isSuccess) && (
-          <div className={`absolute inset-0 flex flex-col items-center justify-center z-20 ${isSuccess ? 'bg-green-500/20' : 'bg-black/40'}`}>
-            {isSuccess ? <Check size={48} className="text-white animate-bounce" /> : <Loader2 size={40} className="text-white animate-spin" />}
-          </div>
-        )}
-      </div>
-      
-      <div className="text-center min-h-[30px] px-4">
-        {statusText && <p className="text-green-600 text-[10px] font-black uppercase tracking-widest">{statusText}</p>}
-        {error && <p className="text-red-500 text-[10px] font-black uppercase tracking-widest leading-tight">{error}</p>}
-      </div>
-
-      {!isSuccess && (
-        <div className="flex gap-3 w-full">
-           <Button onClick={captureAndVerify} isLoading={loading} disabled={loading} className="flex-1 bg-indigo-600 hover:bg-indigo-700 py-4 font-black text-[10px] uppercase tracking-widest shadow-xl">Scan</Button>
-           <Button variant="outline" onClick={stopCamera} className="flex-1 py-4 font-black text-[10px] uppercase tracking-widest border-gray-200">Cancel</Button>
-        </div>
-      )}
-      <canvas ref={canvasRef} className="hidden" />
-    </div>
-  );
-};
-
-const Header: React.FC<{ 
-  user: User | null, 
-  onViewChange: (v: AppView) => void, 
-  onLogin: () => void, 
+const Header: React.FC<{
+  user: User | null,
+  onViewChange: (v: AppView) => void,
+  onLogin: () => void,
   onLogout: () => void,
-  onVision: () => void 
+  onVision: () => void
 }> = ({ user, onViewChange, onLogin, onLogout, onVision }) => {
   const { elderMode, toggleElderMode, isOffline, toggleOffline } = useContext(AppContext);
   const { t } = useLanguage();
@@ -244,18 +112,18 @@ const Header: React.FC<{
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-2xl shadow-lg transition-all duration-500 ${isOffline ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-200' : 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-green-200'}`}>G</div>
           <span className={`font-black text-gray-900 tracking-tighter transition-all ${elderMode ? 'text-3xl' : 'text-2xl'}`}>{t("GrameenConnect")}</span>
         </div>
-        
+
         <div className="hidden lg:flex items-center gap-6">
           <nav className="flex items-center gap-5">
             <button onClick={() => onViewChange(AppView.LANDING)} className="text-gray-500 hover:text-green-600 font-black transition-colors text-[10px] uppercase tracking-widest">{t("Home")}</button>
             <button onClick={() => user ? onViewChange(AppView.PORTAL) : onLogin()} className="text-gray-500 hover:text-green-600 font-black transition-colors text-[10px] uppercase tracking-widest">{t("Portal")}</button>
           </nav>
-          
+
           <div className="h-6 w-px bg-gray-200"></div>
 
           <div className="flex items-center gap-3">
-            <button 
-              onClick={toggleOffline} 
+            <button
+              onClick={toggleOffline}
               className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border flex items-center gap-2 ${isOffline ? 'bg-amber-600 text-white border-amber-700 shadow-xl shadow-amber-100' : 'bg-white text-gray-500 hover:text-green-600 border-gray-100 shadow-sm'}`}
             >
               {isOffline ? <WifiOff size={14} /> : <Wifi size={14} />}
@@ -264,14 +132,14 @@ const Header: React.FC<{
 
             {user && (
               <>
-                <button 
-                  onClick={onVision} 
+                <button
+                  onClick={onVision}
                   disabled={isOffline}
                   className={`px-5 py-2.5 rounded-2xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border shadow-sm ${isOffline ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-50' : 'bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100'}`}
                 >
                   <Eye size={14} /> {t("Vision")}
                 </button>
-                <button 
+                <button
                   onClick={onLogout}
                   className="px-5 py-2.5 rounded-2xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-red-50 text-red-600 border border-red-100 hover:bg-red-600 hover:text-white transition-all active:scale-95 shadow-sm"
                 >
@@ -279,7 +147,7 @@ const Header: React.FC<{
                 </button>
               </>
             )}
-            
+
             <button onClick={toggleElderMode} className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${elderMode ? 'bg-green-600 text-white border-green-700 shadow-xl shadow-green-100' : 'bg-white text-gray-500 hover:text-green-600 border-gray-100 shadow-sm'}`}>
               <UserIcon size={14} className="inline" /> {t("Elder Mode")}
             </button>
@@ -289,9 +157,9 @@ const Header: React.FC<{
 
         <div className="lg:hidden flex items-center gap-2">
           {user && (
-             <button onClick={onLogout} className="p-3 rounded-2xl border border-red-100 bg-red-50 text-red-500 shadow-sm active:scale-95">
-               <LogOut size={16} />
-             </button>
+            <button onClick={onLogout} className="p-3 rounded-2xl border border-red-100 bg-red-50 text-red-500 shadow-sm active:scale-95">
+              <LogOut size={16} />
+            </button>
           )}
           <LanguageSelector />
         </div>
@@ -303,29 +171,29 @@ const Header: React.FC<{
 const LandingPage: React.FC<{ onGetStarted: () => void }> = ({ onGetStarted }) => {
   const { elderMode, isOffline } = useContext(AppContext);
   const { t, language } = useLanguage();
-  
+
   return (
     <div className="flex flex-col items-center w-full min-h-screen">
       <div className="w-full bg-gradient-to-b from-green-100/30 via-white to-white py-32 px-4 text-center flex flex-col items-center justify-center min-h-[80vh] pb-56">
         <div className={`inline-flex items-center gap-3 bg-white border px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-[0.3em] mb-14 shadow-sm animate-in fade-in slide-in-from-top-6 duration-1000 ${isOffline ? 'text-amber-700 border-amber-100' : 'text-green-700 border-green-100'}`}>
           <Shield size={16} /> {t("Trusted by Thousands")}
         </div>
-        
+
         <h1 className={`font-black text-gray-900 mb-10 leading-[1.05] tracking-tighter max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-200 ${elderMode ? 'text-7xl md:text-[10rem]' : 'text-6xl md:text-9xl'}`}>
-           {t("GrameenConnect")}
+          {t("GrameenConnect")}
         </h1>
-        
+
         <p className={`text-gray-500 max-w-3xl mx-auto mb-20 leading-relaxed font-medium animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-400 ${elderMode ? 'text-3xl' : 'text-2xl'}`}>
           {t("Empowering rural communities through digital access, education, and services.")}
         </p>
-        
+
         <div className="animate-in fade-in zoom-in duration-1000 delay-600">
-          <Button 
-            onClick={onGetStarted} 
+          <Button
+            onClick={onGetStarted}
             className={`relative overflow-hidden group shadow-[0_20px_60px_-15px_rgba(16,185,129,0.3)] hover:scale-110 active:scale-95 transform transition-all duration-500 rounded-full flex items-center gap-5 text-white border-4 border-white ${isOffline ? 'from-amber-600 to-orange-600 shadow-amber-200 bg-gradient-to-r' : 'from-green-600 to-emerald-600 shadow-green-200 bg-gradient-to-r'} ${elderMode ? 'px-20 py-10 text-4xl' : 'px-16 py-8 text-2xl font-black uppercase tracking-[0.2em]'}`}
           >
             <span className="relative z-10 flex items-center gap-4">
-               {t("Get Started")} <ArrowRight size={elderMode ? 40 : 32} className="group-hover:translate-x-3 transition-transform duration-500"/>
+              {t("Get Started")} <ArrowRight size={elderMode ? 40 : 32} className="group-hover:translate-x-3 transition-transform duration-500" />
             </span>
           </Button>
         </div>
@@ -352,14 +220,14 @@ const LandingPage: React.FC<{ onGetStarted: () => void }> = ({ onGetStarted }) =
   );
 };
 
-const Dashboard: React.FC<{ 
-  user: User, 
-  onOpenTool: (t: ModalType) => void, 
+const Dashboard: React.FC<{
+  user: User,
+  onOpenTool: (t: ModalType) => void,
   onOpenLearning: (m: LearningModule) => void
 }> = ({ user, onOpenTool, onOpenLearning }) => {
   const { elderMode, isOffline } = useContext(AppContext);
   const { t, language } = useLanguage();
-  
+
   const learningModules: LearningModule[] = [
     { id: '1', title: t('UPI Payments Basics'), category: t('Finance'), description: t('Learn how to use BHIM and PhonePe safely.'), icon: '💸' },
     { id: '2', title: t('Telehealth Consultation'), category: t('Health'), description: t('How to book and attend a doctor appointment online.'), icon: '🩺' },
@@ -392,7 +260,7 @@ const Dashboard: React.FC<{
           <p className="text-white text-xl md:text-2xl opacity-80 leading-relaxed font-medium max-w-xl">{t("Explore government schemes, health aids, and local marketplaces.")}</p>
         </div>
         <div className="absolute right-[-5%] bottom-[-5%] opacity-10 group-hover:scale-110 transition-transform duration-1000">
-           <Landmark size={320} />
+          <Landmark size={320} />
         </div>
       </div>
 
@@ -404,28 +272,28 @@ const Dashboard: React.FC<{
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card onClick={() => onOpenTool(ModalType.MARKET)} className="group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 hover:border-green-300 transition-all relative">
-             <button onClick={(e) => { e.stopPropagation(); handleSpeak("Kisan Mandi", "Market Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all"><Volume2 size={20}/></button>
-             <div className="bg-green-50 w-16 h-16 rounded-2xl flex items-center justify-center text-green-600 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all shadow-inner"><ShoppingCart size={28}/></div>
-             <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Kisan Mandi")}</h4>
-             <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Market Description")}</p>
+            <button onClick={(e) => { e.stopPropagation(); handleSpeak("Kisan Mandi", "Market Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all"><Volume2 size={20} /></button>
+            <div className="bg-green-50 w-16 h-16 rounded-2xl flex items-center justify-center text-green-600 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all shadow-inner"><ShoppingCart size={28} /></div>
+            <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Kisan Mandi")}</h4>
+            <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Market Description")}</p>
           </Card>
           <Card onClick={handleOpenPlantAI} className="group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 hover:border-emerald-400 transition-all relative">
-             <button onClick={(e) => { e.stopPropagation(); handleSpeak("Plant Health AI", "Scan crops for diseases."); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"><Volume2 size={20}/></button>
-             <div className="bg-emerald-50 w-16 h-16 rounded-2xl flex items-center justify-center text-emerald-600 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all shadow-inner"><Sprout size={28}/></div>
-             <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Plant Health AI")}</h4>
-             <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Scan crops for diseases.")}</p>
+            <button onClick={(e) => { e.stopPropagation(); handleSpeak("Plant Health AI", "Scan crops for diseases."); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"><Volume2 size={20} /></button>
+            <div className="bg-emerald-50 w-16 h-16 rounded-2xl flex items-center justify-center text-emerald-600 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all shadow-inner"><Sprout size={28} /></div>
+            <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Plant Health AI")}</h4>
+            <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Scan crops for diseases.")}</p>
           </Card>
           <Card onClick={() => onOpenTool(ModalType.HEALTH_CHAT)} className="group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 hover:border-pink-300 transition-all relative">
-             <button onClick={(e) => { e.stopPropagation(); handleSpeak("Swasthya Saathi", "Health Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-pink-600 hover:bg-pink-50 transition-all"><Volume2 size={20}/></button>
-             <div className="bg-pink-50 w-16 h-16 rounded-2xl flex items-center justify-center text-pink-600 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all shadow-inner"><Heart size={28}/></div>
-             <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Swasthya Saathi")}</h4>
-             <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Health Description")}</p>
+            <button onClick={(e) => { e.stopPropagation(); handleSpeak("Swasthya Saathi", "Health Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-pink-600 hover:bg-pink-50 transition-all"><Volume2 size={20} /></button>
+            <div className="bg-pink-50 w-16 h-16 rounded-2xl flex items-center justify-center text-pink-600 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all shadow-inner"><Heart size={28} /></div>
+            <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Swasthya Saathi")}</h4>
+            <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Health Description")}</p>
           </Card>
           <Card onClick={() => onOpenTool(ModalType.VISION)} className="group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 hover:border-purple-300 transition-all relative">
-             <button onClick={(e) => { e.stopPropagation(); handleSpeak("Vision Helper", "Analyze surroundings via camera."); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-all"><Volume2 size={20}/></button>
-             <div className="bg-purple-50 w-16 h-16 rounded-2xl flex items-center justify-center text-purple-600 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all shadow-inner"><Eye size={28}/></div>
-             <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Vision Helper")}</h4>
-             <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Analyze surroundings via camera.")}</p>
+            <button onClick={(e) => { e.stopPropagation(); handleSpeak("Vision Helper", "Analyze surroundings via camera."); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-all"><Volume2 size={20} /></button>
+            <div className="bg-purple-50 w-16 h-16 rounded-2xl flex items-center justify-center text-purple-600 mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all shadow-inner"><Eye size={28} /></div>
+            <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Vision Helper")}</h4>
+            <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Analyze surroundings via camera.")}</p>
           </Card>
         </div>
       </section>
@@ -438,28 +306,28 @@ const Dashboard: React.FC<{
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <Card onClick={() => onOpenTool(ModalType.RESUME)} className={`group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 transition-all relative ${isOffline ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-blue-300'}`}>
-             {!isOffline && <button onClick={(e) => { e.stopPropagation(); handleSpeak("Smart Resume Builder", "Resume Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all"><Volume2 size={20}/></button>}
-             <div className="bg-blue-50 w-16 h-16 rounded-2xl flex items-center justify-center text-blue-600 mb-6 shadow-inner"><Briefcase size={28}/></div>
-             <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Smart Resume Builder")}</h4>
-             <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Resume Description")}</p>
+            {!isOffline && <button onClick={(e) => { e.stopPropagation(); handleSpeak("Smart Resume Builder", "Resume Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all"><Volume2 size={20} /></button>}
+            <div className="bg-blue-50 w-16 h-16 rounded-2xl flex items-center justify-center text-blue-600 mb-6 shadow-inner"><Briefcase size={28} /></div>
+            <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Smart Resume Builder")}</h4>
+            <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Resume Description")}</p>
           </Card>
           <Card onClick={() => onOpenTool(ModalType.SCHEMES)} className={`group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 transition-all relative ${isOffline ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-orange-300'}`}>
-             {!isOffline && <button onClick={(e) => { e.stopPropagation(); handleSpeak("Scheme Matcher", "Scheme Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition-all"><Volume2 size={20}/></button>}
-             <div className="bg-orange-50 w-16 h-16 rounded-2xl flex items-center justify-center text-orange-600 mb-6 shadow-inner"><Landmark size={28}/></div>
-             <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Scheme Matcher")}</h4>
-             <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Scheme Description")}</p>
+            {!isOffline && <button onClick={(e) => { e.stopPropagation(); handleSpeak("Scheme Matcher", "Scheme Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition-all"><Volume2 size={20} /></button>}
+            <div className="bg-orange-50 w-16 h-16 rounded-2xl flex items-center justify-center text-orange-600 mb-6 shadow-inner"><Landmark size={28} /></div>
+            <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Scheme Matcher")}</h4>
+            <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Scheme Description")}</p>
           </Card>
           <Card onClick={() => onOpenTool(ModalType.MOBILITY)} className={`group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 transition-all relative hover:border-purple-300`}>
-             <button onClick={(e) => { e.stopPropagation(); handleSpeak("Mobility Planner", "Mobility Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-all"><Volume2 size={20}/></button>
-             <div className="bg-purple-50 w-16 h-16 rounded-2xl flex items-center justify-center text-purple-600 mb-6 shadow-inner"><Navigation size={28}/></div>
-             <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Mobility Planner")}</h4>
-             <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Mobility Description")}</p>
+            <button onClick={(e) => { e.stopPropagation(); handleSpeak("Mobility Planner", "Mobility Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-all"><Volume2 size={20} /></button>
+            <div className="bg-purple-50 w-16 h-16 rounded-2xl flex items-center justify-center text-purple-600 mb-6 shadow-inner"><Navigation size={28} /></div>
+            <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Mobility Planner")}</h4>
+            <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Mobility Description")}</p>
           </Card>
           <Card onClick={() => onOpenTool(ModalType.GOVERNANCE)} className={`group bg-white border-2 border-gray-50 rounded-[2.5rem] p-8 transition-all relative ${isOffline ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-red-300'}`}>
-             {!isOffline && <button onClick={(e) => { e.stopPropagation(); handleSpeak("Governance Aid", "Governance Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"><Volume2 size={20}/></button>}
-             <div className="bg-red-50 w-16 h-16 rounded-2xl flex items-center justify-center text-red-600 mb-6 shadow-inner"><Mic size={28}/></div>
-             <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Governance Aid")}</h4>
-             <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Governance Description")}</p>
+            {!isOffline && <button onClick={(e) => { e.stopPropagation(); handleSpeak("Governance Aid", "Governance Description"); }} className="absolute top-6 right-6 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"><Volume2 size={20} /></button>}
+            <div className="bg-red-50 w-16 h-16 rounded-2xl flex items-center justify-center text-red-600 mb-6 shadow-inner"><Mic size={28} /></div>
+            <h4 className="font-black text-gray-900 text-lg uppercase tracking-tight mb-3">{t("Governance Aid")}</h4>
+            <p className="text-sm text-gray-400 font-medium leading-relaxed">{t("Governance Description")}</p>
           </Card>
         </div>
       </section>
@@ -471,15 +339,15 @@ const Dashboard: React.FC<{
           <h3 className={`font-black text-gray-900 uppercase tracking-tighter ${elderMode ? 'text-5xl' : 'text-3xl'}`}>{t("Learning Modules")}</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
-           {learningModules.map(module => (
-             <div key={module.id} className="bg-white border-2 border-gray-50 rounded-[3rem] p-8 transition-all flex flex-col h-full group hover:shadow-2xl hover:border-green-100 relative">
-               <button onClick={(e) => { e.stopPropagation(); handleSpeak(module.title, module.description); }} className="absolute top-8 right-8 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all"><Volume2 size={20}/></button>
-               <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-8 bg-gray-50 border border-gray-100">{module.icon}</div>
-               <h4 className="font-black mb-4 text-xl uppercase tracking-tight text-gray-900">{module.title}</h4>
-               <p className="text-gray-400 text-base mb-10 flex-grow font-medium leading-relaxed">{module.description}</p>
-               <Button onClick={() => onOpenLearning(module)} variant='secondary' className="w-full text-[10px] font-black uppercase tracking-widest py-4 rounded-xl">{t("Start Learning")}</Button>
-             </div>
-           ))}
+          {learningModules.map(module => (
+            <div key={module.id} className="bg-white border-2 border-gray-50 rounded-[3rem] p-8 transition-all flex flex-col h-full group hover:shadow-2xl hover:border-green-100 relative">
+              <button onClick={(e) => { e.stopPropagation(); handleSpeak(module.title, module.description); }} className="absolute top-8 right-8 p-2 rounded-full bg-gray-50 text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all"><Volume2 size={20} /></button>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-8 bg-gray-50 border border-gray-100">{module.icon}</div>
+              <h4 className="font-black mb-4 text-xl uppercase tracking-tight text-gray-900">{module.title}</h4>
+              <p className="text-gray-400 text-base mb-10 flex-grow font-medium leading-relaxed">{module.description}</p>
+              <Button onClick={() => onOpenLearning(module)} variant='secondary' className="w-full text-[10px] font-black uppercase tracking-widest py-4 rounded-xl">{t("Start Learning")}</Button>
+            </div>
+          ))}
         </div>
       </section>
     </div>
@@ -495,12 +363,13 @@ export default function App() {
   const [isOffline, setIsOffline] = useState(false);
   const [healthQuery, setHealthQuery] = useState<string>('');
   const [mobilityInitialData, setMobilityInitialData] = useState<{ start?: string; end?: string } | undefined>(undefined);
-  
+  const [showFaceLogin, setShowFaceLogin] = useState(false);
+
   const [marketItems, setMarketItems] = useState<MarketItem[]>([
     { id: '1', name: 'Organic Wheat', price: '₹25/kg', seller: 'Ramesh Kumar', location: 'Sonapur', contact: '9876543210', image: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&q=80&w=400' },
     { id: '2', name: 'Fresh Potatoes', price: '₹15/kg', seller: 'Savitri Devi', location: 'Village East', contact: '9123456780', image: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&q=80&w=400' }
   ]);
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
@@ -567,23 +436,23 @@ export default function App() {
   return (
     <AppContext.Provider value={{ elderMode, toggleElderMode, isOffline, toggleOffline }}>
       <div className={`min-h-screen flex flex-col bg-white font-sans ${elderMode ? 'text-lg' : 'text-base'}`}>
-        <Header 
-          user={user} 
-          onViewChange={setView} 
-          onLogin={() => setModal(ModalType.LOGIN)} 
+        <Header
+          user={user}
+          onViewChange={setView}
+          onLogin={() => setModal(ModalType.LOGIN)}
           onLogout={() => { setUser(null); setView(AppView.LANDING); }}
           onVision={() => setModal(ModalType.VISION)}
         />
-        
+
         <main className="flex-grow">
           {view === AppView.LANDING && (
             <LandingPage onGetStarted={() => user ? setView(AppView.PORTAL) : setModal(ModalType.LOGIN)} />
           )}
-          
+
           {view === AppView.PORTAL && user && (
-            <Dashboard 
-              user={user} 
-              onOpenTool={setModal} 
+            <Dashboard
+              user={user}
+              onOpenTool={setModal}
               onOpenLearning={(m) => { setSelectedModule(m); setView(AppView.LEARNING_DETAIL); }}
             />
           )}
@@ -601,12 +470,12 @@ export default function App() {
             </div>
           )}
         </main>
-        
+
         <footer className="bg-gray-900 text-gray-400 py-16 text-center">
-           <div className="max-w-7xl mx-auto px-4">
-              <span className="font-black text-white text-2xl tracking-tighter mb-4 block">GrameenConnect</span>
-              <p className="text-sm font-medium opacity-60">© 2024 GRAMEENCONNECT INITIATIVE.</p>
-           </div>
+          <div className="max-w-7xl mx-auto px-4">
+            <span className="font-black text-white text-2xl tracking-tighter mb-4 block">GrameenConnect</span>
+            <p className="text-sm font-medium opacity-60">© 2024 GRAMEENCONNECT INITIATIVE.</p>
+          </div>
         </footer>
 
         <Modal isOpen={modal === ModalType.LOGIN} onClose={() => setModal(ModalType.NONE)} title={t("Welcome")} maxWidth="max-w-md">
@@ -618,7 +487,12 @@ export default function App() {
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
               <span className="bg-white px-4 relative">OR</span>
             </div>
-            <FaceAuth onSuccess={(name) => handleLogin(name)} language={language} />
+            <button
+              onClick={() => setShowFaceLogin(true)}
+              className="w-full flex items-center justify-center gap-3 bg-indigo-50 text-indigo-700 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] border-2 border-indigo-100 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all active:scale-95 shadow-sm"
+            >
+              <Scan size={18} /> {t("Face Sign In")}
+            </button>
           </div>
         </Modal>
 
@@ -631,6 +505,23 @@ export default function App() {
         <KisanModal isOpen={modal === ModalType.MARKET} onClose={() => setModal(ModalType.NONE)} language={language} items={marketItems} setItems={setMarketItems} />
         <VisionModal isOpen={modal === ModalType.VISION} onClose={() => setModal(ModalType.NONE)} language={language} />
         <OfflineResourcesModal isOpen={modal === ModalType.OFFLINE_RESOURCES} onClose={() => setModal(ModalType.NONE)} language={language} />
+
+        {showFaceLogin && (
+          <Modal isOpen={showFaceLogin} onClose={() => setShowFaceLogin(false)} title={t("Sign In with Face")}>
+            <div className="p-8">
+              <FaceAuthLogin
+                onSuccess={(name) => {
+                  setUser({ name, email: 'face-auth@grameen.com' });
+                  setView(AppView.PORTAL);
+                  setShowFaceLogin(false);
+                  setModal(ModalType.NONE);
+                  speak(`${t("Welcome")}, ${name}!`, language);
+                }}
+                onCancel={() => setShowFaceLogin(false)}
+              />
+            </div>
+          </Modal>
+        )}
       </div>
     </AppContext.Provider>
   );

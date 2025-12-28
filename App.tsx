@@ -10,6 +10,7 @@ import { useLanguage, LANGUAGES } from './contexts/LanguageContext';
 import { generateVisionContent } from './services/geminiService';
 import { speak } from './services/speechService';
 import FaceAuthLogin from './components/FaceAuthLogin';
+import FaceRegister from './components/FaceRegister';
 // import { Modal } from './components/Shared';  // already imported, just ensure it's there
 // import { Scan } from 'lucide-react';
 
@@ -93,7 +94,6 @@ const LanguageSelector: React.FC = () => {
 };
 
 // FaceAuth component deleted as per request.
-
 
 const Header: React.FC<{
   user: User | null,
@@ -364,6 +364,7 @@ export default function App() {
   const [healthQuery, setHealthQuery] = useState<string>('');
   const [mobilityInitialData, setMobilityInitialData] = useState<{ start?: string; end?: string } | undefined>(undefined);
   const [showFaceLogin, setShowFaceLogin] = useState(false);
+  const [showFaceRegister, setShowFaceRegister] = useState(false);
 
   const [marketItems, setMarketItems] = useState<MarketItem[]>([
     { id: '1', name: 'Organic Wheat', price: '₹25/kg', seller: 'Ramesh Kumar', location: 'Sonapur', contact: '9876543210', image: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&q=80&w=400' },
@@ -493,6 +494,17 @@ export default function App() {
             >
               <Scan size={18} /> {t("Face Sign In")}
             </button>
+            <div className="mt-4 text-center">
+              <button
+                onClick={() => {
+                  setShowFaceRegister(true);
+                  speak(t("First time user? Let's register your face."), language);
+                }}
+                className="text-indigo-600 font-black underline text-sm"
+              >
+                {t("First time? Register your face")}
+              </button>
+            </div>
           </div>
         </Modal>
 
@@ -518,6 +530,26 @@ export default function App() {
                   speak(`${t("Welcome")}, ${name}!`, language);
                 }}
                 onCancel={() => setShowFaceLogin(false)}
+              />
+            </div>
+          </Modal>
+        )}
+
+        {showFaceRegister && (
+          <Modal isOpen={showFaceRegister} onClose={() => setShowFaceRegister(false)} title={t("Register Your Face")}>
+            <div className="p-8">
+              <h2 className="text-3xl font-black text-center mb-8 text-indigo-700">
+                {t("Register Your Face")}
+              </h2>
+              <FaceRegister
+                onSuccess={(name) => {
+                  setUser({ name, email: `face-${Date.now()}@grameen.com` });
+                  setView(AppView.PORTAL);
+                  setShowFaceRegister(false);
+                  setModal(ModalType.NONE);
+                  speak(`${t("Welcome")}, ${name}! ${t("You can now sign in with your face.")}`, language);
+                }}
+                onCancel={() => setShowFaceRegister(false)}
               />
             </div>
           </Modal>

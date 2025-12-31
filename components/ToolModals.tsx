@@ -207,7 +207,7 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap'
           }).addTo(leafletMap.current);
-          
+
           const startIcon = L.divIcon({
             className: 'custom-marker',
             html: `<div class="bg-emerald-600 text-white p-2 rounded-full shadow-lg border-2 border-white scale-125 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>`,
@@ -224,7 +224,7 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
 
           const startMarker = L.marker([coords.start.lat, coords.start.lng], { icon: startIcon }).addTo(leafletMap.current).bindPopup(`<b>${t("Start")}:</b><br/>${data.start}`);
           const endMarker = L.marker([coords.end.lat, coords.end.lng], { icon: endIcon }).addTo(leafletMap.current).bindPopup(`<b>${t("Destination")}:</b><br/>${data.end}`);
-          
+
           const group = new L.FeatureGroup([startMarker, endMarker]);
           leafletMap.current.fitBounds(group.getBounds().pad(0.5));
 
@@ -311,10 +311,10 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
               <div className="bg-green-600 text-white p-2.5 rounded-2xl shadow-lg"><Sparkles size={20} /></div>
               <div>
                 <p className="text-xs font-black text-green-800 uppercase tracking-widest">{t("Sahayak AI")}</p>
-                <p className="text-[10px] text-green-600 font-bold uppercase mt-0.5">{isVoiceFilling ? t("Listening...") : t("Speak trip details")}</p>
+                <p className="text-[10px] text-green-600 font-bold uppercase mt-0.5">{isVoiceActive ? t("Listening...") : t("Speak trip details")}</p>
               </div>
             </div>
-            <button onClick={handleVoiceFill} className={`p-4 rounded-full transition-all shadow-lg active:scale-90 ${isVoiceFilling ? 'bg-red-500 text-white animate-pulse' : 'bg-white text-green-600 border border-green-100'}`}><Mic size={24} /></button>
+            <button onClick={() => handleVoiceInput(wizardStep === 2 ? 'end' : 'start')} className={`p-4 rounded-full transition-all shadow-lg active:scale-90 ${isVoiceActive ? 'bg-red-500 text-white animate-pulse' : 'bg-white text-green-600 border border-green-100'}`}><Mic size={24} /></button>
           </div>
         )}
 
@@ -335,50 +335,50 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
         <div className="flex-1 min-h-[300px]">
           {wizardStep === 1 && (
             <div className="space-y-6 animate-in slide-in-from-right-4 duration-300 py-4">
-               <div className="flex items-center justify-between">
-                 <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">{t("Select Start")}</h3>
-                 <button 
-                  onClick={() => handleVoiceInput('start')} 
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">{t("Select Start")}</h3>
+                <button
+                  onClick={() => handleVoiceInput('start')}
                   className={`p-3 rounded-full shadow-lg transition-all active:scale-90 ${isVoiceActive === 'start' ? 'bg-red-500 animate-pulse text-white' : 'bg-green-50 text-green-600 border border-green-100 hover:bg-green-100'}`}
-                 >
-                   <Mic size={20} />
-                 </button>
-               </div>
-               <Input 
-                placeholder={t("Enter village or town...")} 
-                value={data.start} 
-                onChange={e => setData({...data, start: e.target.value})} 
-                icon={<MapPin size={20} className="text-green-500" />} 
-                className="py-5 px-6 text-lg rounded-2xl border-2 focus:border-green-500" 
-                autoFocus 
-               />
-               <div className="bg-gray-50 p-4 rounded-2xl border border-dashed border-gray-200">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
-                    <span className="text-green-600">Tip:</span> Use the microphone to speak your village name.
-                  </p>
-               </div>
+                >
+                  <Mic size={20} />
+                </button>
+              </div>
+              <Input
+                placeholder={t("Enter village or town...")}
+                value={data.start}
+                onChange={e => setData({ ...data, start: e.target.value })}
+                icon={<MapPin size={20} className="text-green-500" />}
+                className="py-5 px-6 text-lg rounded-2xl border-2 focus:border-green-500"
+                autoFocus
+              />
+              <div className="bg-gray-50 p-4 rounded-2xl border border-dashed border-gray-200">
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
+                  <span className="text-green-600">Tip:</span> Use the microphone to speak your village name.
+                </p>
+              </div>
             </div>
           )}
 
           {wizardStep === 2 && (
             <div className="space-y-6 animate-in slide-in-from-right-4 duration-300 py-4">
-               <div className="flex items-center justify-between">
-                 <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">{t("Select Destination")}</h3>
-                 <button 
-                  onClick={() => handleVoiceInput('end')} 
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">{t("Select Destination")}</h3>
+                <button
+                  onClick={() => handleVoiceInput('end')}
                   className={`p-3 rounded-full shadow-lg transition-all active:scale-90 ${isVoiceActive === 'end' ? 'bg-red-500 animate-pulse text-white' : 'bg-green-50 text-green-600 border border-green-100 hover:bg-green-100'}`}
-                 >
-                   <Mic size={20} />
-                 </button>
-               </div>
-               <Input 
-                placeholder={t("Enter destination...")} 
-                value={data.end} 
-                onChange={e => setData({...data, end: e.target.value})} 
-                icon={<Flag size={20} className="text-red-500" />} 
-                className="py-5 px-6 text-lg rounded-2xl border-2 focus:border-green-500" 
-                autoFocus 
-               />
+                >
+                  <Mic size={20} />
+                </button>
+              </div>
+              <Input
+                placeholder={t("Enter destination...")}
+                value={data.end}
+                onChange={e => setData({ ...data, end: e.target.value })}
+                icon={<Flag size={20} className="text-red-500" />}
+                className="py-5 px-6 text-lg rounded-2xl border-2 focus:border-green-500"
+                autoFocus
+              />
             </div>
           )}
 
@@ -387,11 +387,11 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
               <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">{t("Select Aid")}</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {['None', 'Wheelchair', 'Walking Stick', 'Crutches'].map(aid => (
-                  <button 
-                      key={aid} 
-                      onClick={() => setData({ ...data, aid })} 
-                      className={`p-5 rounded-2xl border-4 transition-all flex flex-col items-center justify-center gap-2 h-28 ${data.aid === aid ? 'bg-green-50 border-green-500 text-green-700 shadow-xl scale-105' : 'bg-white border-gray-50 text-gray-400 hover:border-green-100'}`}
-                    >
+                  <button
+                    key={aid}
+                    onClick={() => setData({ ...data, aid })}
+                    className={`p-5 rounded-2xl border-4 transition-all flex flex-col items-center justify-center gap-2 h-28 ${data.aid === aid ? 'bg-green-50 border-green-500 text-green-700 shadow-xl scale-105' : 'bg-white border-gray-50 text-gray-400 hover:border-green-100'}`}
+                  >
                     <span className="text-[10px] font-black uppercase tracking-widest leading-none">{t(aid)}</span>
                   </button>
                 ))}
@@ -401,43 +401,43 @@ export const MobilityModal: React.FC<{ isOpen: boolean; onClose: () => void; lan
 
           {wizardStep === 4 && (
             <div className="space-y-6 animate-in fade-in duration-500 py-2">
-               {loading ? (
-                 <div className="flex flex-col items-center justify-center py-20 gap-4">
-                   <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-500 border-t-transparent"></div>
-                   <p className="text-xs font-black text-gray-400 uppercase tracking-widest animate-pulse">{t("Calculating Path...")}</p>
-                 </div>
-               ) : planningResult && (
-                 <div className="flex flex-col space-y-6">
-                   <div className="bg-emerald-50 border-2 border-emerald-100 rounded-[2rem] p-6 relative shadow-sm">
-                     <button onClick={() => speak(planningResult.text, language)} className="absolute top-4 right-4 p-3 bg-white text-emerald-600 rounded-full shadow-lg border border-emerald-50 hover:bg-emerald-600 hover:text-white transition-all"><Volume2 size={20} /></button>
-                     <h4 className="font-black text-emerald-800 uppercase tracking-tight mb-3 flex items-center gap-2 text-sm"><ShieldCheck size={20}/> {t("Safe Route Found")}</h4>
-                     <div className="text-emerald-700 text-sm font-medium leading-relaxed pr-10">
-                        {/* Fix: Wrapped ReactMarkdown in a div to apply className styles */}
-                        <div className="prose prose-sm max-w-none">
-                          <ReactMarkdown>{planningResult.text}</ReactMarkdown>
-                        </div>
-                     </div>
-                   </div>
-                   
-                   <div className="flex flex-wrap gap-3">
-                     {planningResult.links.map((link, idx) => (
-                       <a key={idx} href={link.uri} target="_blank" rel="noopener noreferrer" className="bg-blue-50 text-blue-700 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-2 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
-                         <ExternalLink size={14}/> {link.title}
-                       </a>
-                     ))}
-                     <button onClick={openInGoogleMaps} className="bg-white text-emerald-600 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 flex items-center gap-2 hover:bg-emerald-600 hover:text-white transition-all shadow-sm ml-auto">
-                       <MapIcon size={14} /> {t("Google Maps")}
-                     </button>
-                   </div>
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-500 border-t-transparent"></div>
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest animate-pulse">{t("Calculating Path...")}</p>
+                </div>
+              ) : planningResult && (
+                <div className="flex flex-col space-y-6">
+                  <div className="bg-emerald-50 border-2 border-emerald-100 rounded-[2rem] p-6 relative shadow-sm">
+                    <button onClick={() => speak(planningResult.text, language)} className="absolute top-4 right-4 p-3 bg-white text-emerald-600 rounded-full shadow-lg border border-emerald-50 hover:bg-emerald-600 hover:text-white transition-all"><Volume2 size={20} /></button>
+                    <h4 className="font-black text-emerald-800 uppercase tracking-tight mb-3 flex items-center gap-2 text-sm"><ShieldCheck size={20} /> {t("Safe Route Found")}</h4>
+                    <div className="text-emerald-700 text-sm font-medium leading-relaxed pr-10">
+                      {/* Fix: Wrapped ReactMarkdown in a div to apply className styles */}
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown>{planningResult.text}</ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
 
-                   <div className="h-[40vh] min-h-[300px] w-full bg-gray-50 rounded-[2.5rem] overflow-hidden border-2 border-gray-100 shadow-inner relative z-0">
-                      <div ref={mapRef} className="absolute inset-0 w-full h-full" />
-                      {!coords && <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80 z-10"><p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Geocoding places...</p></div>}
-                   </div>
-                   
-                   <Button variant="outline" onClick={() => { setWizardStep(1); setPlanningResult(null); setCoords(null); }} className="w-full py-5 rounded-2xl font-black uppercase tracking-widest text-xs border-2">{t("Plan Another")}</Button>
-                 </div>
-               )}
+                  <div className="flex flex-wrap gap-3">
+                    {planningResult.links.map((link, idx) => (
+                      <a key={idx} href={link.uri} target="_blank" rel="noopener noreferrer" className="bg-blue-50 text-blue-700 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-2 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                        <ExternalLink size={14} /> {link.title}
+                      </a>
+                    ))}
+                    <button onClick={openInGoogleMaps} className="bg-white text-emerald-600 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 flex items-center gap-2 hover:bg-emerald-600 hover:text-white transition-all shadow-sm ml-auto">
+                      <MapIcon size={14} /> {t("Google Maps")}
+                    </button>
+                  </div>
+
+                  <div className="h-[40vh] min-h-[300px] w-full bg-gray-50 rounded-[2.5rem] overflow-hidden border-2 border-gray-100 shadow-inner relative z-0">
+                    <div ref={mapRef} className="absolute inset-0 w-full h-full" />
+                    {!coords && <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80 z-10"><p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Geocoding places...</p></div>}
+                  </div>
+
+                  <Button variant="outline" onClick={() => { setWizardStep(1); setPlanningResult(null); setCoords(null); }} className="w-full py-5 rounded-2xl font-black uppercase tracking-widest text-xs border-2">{t("Plan Another")}</Button>
+                </div>
+              )}
             </div>
           )}
         </div>

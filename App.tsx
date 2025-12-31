@@ -245,7 +245,7 @@ const Dashboard: React.FC<{
   };
 
   const handleOpenPlantAI = () => {
-    window.open("https://plant-disease-prediction-using-cnn-q3ct.onrender.com/", "_blank");
+    window.open("https://plant-disease-prediction-using-cnn-ebjp.onrender.com/", "_blank");
   };
 
   return (
@@ -257,13 +257,13 @@ const Dashboard: React.FC<{
             {isOffline ? t("Working Offline") : t("Portal Access Granted")}
           </div>
           <div className="flex items-center gap-4 mb-6">
-             <div className="bg-white/20 p-4 rounded-3xl backdrop-blur-md border border-white/30">
-               <UserIcon size={40} className="text-white" />
-             </div>
-             <div className="flex flex-col">
-               <span className="text-xs font-black uppercase tracking-[0.2em] text-white/70">{t("Welcome Back")}</span>
-               <h2 className={`font-black tracking-tighter leading-none ${elderMode ? 'text-6xl md:text-8xl' : 'text-4xl md:text-6xl'}`}>{user.name}</h2>
-             </div>
+            <div className="bg-white/20 p-4 rounded-3xl backdrop-blur-md border border-white/30">
+              <UserIcon size={40} className="text-white" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-black uppercase tracking-[0.2em] text-white/70">{t("Welcome Back")}</span>
+              <h2 className={`font-black tracking-tighter leading-none ${elderMode ? 'text-6xl md:text-8xl' : 'text-4xl md:text-6xl'}`}>{user.name}</h2>
+            </div>
           </div>
           <p className="text-white text-xl md:text-2xl opacity-80 leading-relaxed font-medium max-w-xl">{t("Explore government schemes, health aids, and local marketplaces.")}</p>
         </div>
@@ -383,6 +383,7 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [nameInput, setNameInput] = useState('');
 
   const toggleElderMode = () => setElderMode(!elderMode);
   const toggleOffline = () => setIsOffline(!isOffline);
@@ -415,7 +416,7 @@ export default function App() {
       setLoginError("Please enter your name.");
       return;
     }
-    
+
     setLoginLoading(true);
     setLoginError(null);
 
@@ -425,10 +426,10 @@ export default function App() {
       setUser({ name: finalName, email: `${finalName.toLowerCase()}@local.com` });
       setModal(ModalType.NONE);
       setView(AppView.PORTAL);
-      
+
       // Personalized registration speech confirmation
       speak(`Welcome ${finalName}, your voice command name is now registered.`, language);
-      
+
       setLoginLoading(false);
     }, 800);
   };
@@ -511,33 +512,33 @@ export default function App() {
         <Modal isOpen={modal === ModalType.LOGIN} onClose={() => { setModal(ModalType.NONE); setLoginError(null); }} title={t("Join GrameenConnect")} maxWidth="max-w-md">
           <div className="space-y-6">
             <div className="bg-indigo-50 p-6 rounded-3xl flex flex-col items-center gap-4 border border-indigo-100 mb-2 text-center">
-               <div className="bg-indigo-600 text-white p-4 rounded-2xl shadow-xl shadow-indigo-100"><UserIcon size={32}/></div>
-               <div>
-                 <h4 className="font-black text-xs uppercase tracking-[0.2em] text-indigo-700 mb-1">{t("What is your name?")}</h4>
-                 <p className="text-xs font-bold text-indigo-500 opacity-70">{t("Enter your name to start using the portal.")}</p>
-               </div>
+              <div className="bg-indigo-600 text-white p-4 rounded-2xl shadow-xl shadow-indigo-100"><UserIcon size={32} /></div>
+              <div>
+                <h4 className="font-black text-xs uppercase tracking-[0.2em] text-indigo-700 mb-1">{t("What is your name?")}</h4>
+                <p className="text-xs font-bold text-indigo-500 opacity-70">{t("Enter your name to start using the portal.")}</p>
+              </div>
             </div>
-            
-            <Input 
-              label={t("Your Name")} 
-              placeholder="e.g. Rajesh Kumar" 
-              value={nameInput} 
-              onChange={e => setNameInput(e.target.value)} 
+
+            <Input
+              label={t("Your Name")}
+              placeholder="e.g. Rajesh Kumar"
+              value={nameInput}
+              onChange={e => setNameInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
               autoFocus
             />
-            
+
             {loginError && (
               <div className="bg-red-50 border border-red-100 rounded-xl p-3 flex items-center gap-2 text-red-600 text-xs font-bold animate-in zoom-in duration-300">
                 <AlertCircle size={16} />
                 <span>{loginError}</span>
               </div>
             )}
-            
+
             <Button onClick={() => handleLogin()} isLoading={loginLoading} className="w-full py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-green-100 bg-green-600 text-white">
-               {t("Join Portal")} <ArrowRight size={20}/>
+              {t("Join Portal")} <ArrowRight size={20} />
             </Button>
-            
+
             <div className="relative flex justify-center text-[10px] font-black uppercase tracking-[0.4em] text-gray-300 py-2">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
               <span className="bg-white px-4 relative">OR</span>

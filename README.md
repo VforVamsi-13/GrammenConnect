@@ -184,3 +184,11 @@ a single, face-login, voice-first, offline-ready app that brings government sche
 3. Optionally, for Face-auth, Setup Backend from [Grameen Connect Face auth](https://github.com/VforVamsi-13/GrammenConnect-FaceAuth)
 4. Run the GrameenConnect app:
    `npm run dev`
+
+ 
+## Team SyntaxSquad
+
+- **Abhisek Anand** — [GitHub](https://github.com/abhishekanand25)
+- **Adithya Charan** — [GitHub](https://github.com/Adithya-charan)
+- **Deepak Kambala** — [GitHub](https://github.com/Deepak-Kambala)
+- **Vamsi Devarapalli** — [GitHub](https://github.com/VforVamsi-13/)

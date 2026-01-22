@@ -1,6 +1,6 @@
 # 🌾 GrameenConnect  
 
-> A voice-first, offline-ready AI platform empowering rural India with accessible digital services.
+> A voice-first, offline-ready AI platform idea empowering rural India with accessible digital services.
 
 ---
 
@@ -184,6 +184,110 @@ a single, face-login, voice-first, offline-ready app that brings government sche
 3. Optionally, for Face-auth, Setup Backend from [Grameen Connect Face auth](https://github.com/VforVamsi-13/GrammenConnect-FaceAuth)
 4. Run the GrameenConnect app:
    `npm run dev`
+
+
+---
+
+## Face-auth Backend Setup
+
+The backend is built with **Node.js and Express**.
+
+### Steps to run:
+
+```bash
+cd backend
+npm install
+npm start
+```
+
+The server will start on the port defined in the `.env` file (e.g. `http://localhost:4000`).
+
+---
+
+## Frontend Setup
+
+The frontend is built using **React with Vite**.
+
+### Steps to run:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The app will be available at the port shown in the terminal (default: `http://localhost:5173`).
+
+---
+
+## Environment Variables
+
+Create a `.env` file in both backend and frontend directories and add the required environment variables.
+
+**Example:**
+
+```env
+PORT=4000
+VITE_GEMINI_API_KEY=your_api_key_here
+```
+
+> ⚠️ Do not commit `.env` files to version control.
+
+---
+
+## Face Authentication backend for GrameenConnect. 
+[Project by Team SyntaxSquad, SquareHack Hackathon in IITD by Tale of Human Kind, Ashoka: Innovators for the Public]
+
+## Supabase Setup
+
+To use this application, you need to set up a Supabase project and create a `users` table.
+
+## 1. Create Table
+
+Run the following SQL in your Supabase SQL Editor:
+
+```sql
+create table users (
+  id uuid default gen_random_uuid() primary key,
+  name text not null,
+  face_embedding jsonb not null,
+  created_at timestamp with time zone default now()
+);
+
+```
+
+> Optional :
+Enable Row Level Security (RLS)
+For this demo, we'll keep it simple, but in production, you should secure this.
+
+
+## 2. Environment Variables
+
+Create a `.env` file in the `backend/` directory:
+
+```env
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+PORT=5000
+```
+
+And in the `frontend/` directory (if needed for direct Supabase calls, but we'll use the backend proxy):
+```env
+VITE_API_URL=http://localhost:5000
+```
+
+
+
+---
+
+## Development Workflow
+
+Run the backend and frontend in **separate terminals**:
+
+* Backend handles APIs and server logic
+* Frontend handles UI and client-side logic
+
+---
 
  
 ## Team SyntaxSquad
